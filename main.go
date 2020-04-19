@@ -1,0 +1,175 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"os"
+	"os/exec"
+	"syscall"
+	"unsafe"
+
+	"github.com/creack/pty"
+	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
+	log "github.com/sirupsen/logrus"
+)
+
+type windowSize struct {
+	Rows uint16 `json:"rows"`
+	Cols uint16 `json:"cols"`
+	X    uint16
+	Y    uint16
+}
+
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin:     func(r *http.Request) bool { return true },
+}
+
+func containerNameBasedOnPort(ra net.Addr) string {
+	if addr, ok := ra.(*net.TCPAddr); ok {
+		return fmt.Sprintf("client-%d", addr.Port)
+	}
+	return "client-0"
+}
+
+func runContainer(name string) *exec.Cmd {
+	cmd := exec.Command(
+		"docker",
+		"run",
+		"-it",
+		"--rm",
+		"--name",
+		name,
+		"progapandist/hello",
+		"sh",
+	)
+	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
+	return cmd
+}
+
+func stopContainer(name string) {
+	out, _ := exec.Command(
+		"docker",
+		"stop",
+		name,
+	).Output()
+	log.Printf("Stopped container %s", out)
+}
+
+func handleWebsocket(w http.ResponseWriter, r *http.Request) {
+	l := log.WithField("remoteaddr", r.RemoteAddr)
+
+	conn, err := upgrader.Upgrade(w, r, nil)
+	log.Printf("New connection: %v", conn.RemoteAddr())
+	if err != nil {
+		l.WithError(err).Error("Unable to upgrade connection")
+		return
+	}
+
+	containerName := containerNameBasedOnPort(conn.RemoteAddr())
+	// cmd := runContainer(containerName)
+	cmd := exec.Command("/bin/zsh")
+
+	tty, err := pty.Start(cmd)
+	if err != nil {
+		l.WithError(err).Error("Unable to start pty/cmd")
+		conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+		return
+	}
+
+	defer func() {
+		cmd.Process.Kill()
+		cmd.Process.Wait()
+		tty.Close()
+		conn.Close()
+	}()
+
+	// Constantly read from process and copy to websocket
+	go func() {
+		for {
+			buf := make([]byte, 1024)
+			read, err := tty.Read(buf)
+			fmt.Printf("\n%x ||", buf[:read])
+			// Client dropped connection (closed tab)
+			if err != nil {
+				conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+				l.WithError(err).Error("Unable to read from pty/cmd")
+				stopContainer(containerName)
+				return
+			}
+			conn.WriteMessage(websocket.BinaryMessage, bytes.ToValidUTF8(buf[:read], []byte{}))
+		}
+	}()
+
+	// Constantly read websocket and copy to tty
+	for {
+		messageType, reader, err := conn.NextReader()
+		if err != nil {
+			l.WithError(err).Error("Unable to grab next reader")
+			return
+		}
+
+		if messageType == websocket.TextMessage {
+			l.Warn("Unexpected text message")
+			conn.WriteMessage(websocket.TextMessage, []byte("Unexpected text message"))
+			continue
+		}
+
+		dataTypeBuf := make([]byte, 1)
+		read, err := reader.Read(dataTypeBuf)
+		if err != nil {
+			l.WithError(err).Error("Unable to read message type from reader")
+			conn.WriteMessage(websocket.TextMessage, []byte("Unable to read message type from reader"))
+			return
+		}
+
+		if read != 1 {
+			l.WithField("bytes", read).Error("Unexpected number of bytes read")
+			return
+		}
+
+		switch dataTypeBuf[0] {
+		case 0:
+			copied, err := io.Copy(tty, reader)
+			if err != nil {
+				l.WithError(err).Errorf("Error after copying %d bytes", copied)
+			}
+		case 1:
+			log.Println("RESIZE!")
+			decoder := json.NewDecoder(reader)
+			resizeMessage := windowSize{}
+			err := decoder.Decode(&resizeMessage)
+			if err != nil {
+				conn.WriteMessage(websocket.TextMessage, []byte("Error decoding resize message: "+err.Error()))
+				continue
+			}
+			log.WithField("resizeMessage", resizeMessage).Info("Resizing terminal")
+			_, _, errno := syscall.Syscall(
+				syscall.SYS_IOCTL,
+				tty.Fd(),
+				syscall.TIOCSWINSZ,
+				uintptr(unsafe.Pointer(&resizeMessage)),
+			)
+			if errno != 0 {
+				l.WithError(syscall.Errno(errno)).Error("Unable to resize terminal")
+			}
+		default:
+			l.WithField("dataType", dataTypeBuf[0]).Error("Unknown data type")
+		}
+	}
+}
+
+func main() {
+	r := mux.NewRouter()
+	r.HandleFunc("/term", handleWebsocket)
+
+	if err := http.ListenAndServe(":4567", r); err != nil {
+		log.WithError(err).Fatal("Something went wrong with the webserver")
+	}
+}
