@@ -90,78 +90,81 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		conn.Close()
 	}()
 
-	// Constantly read from process and copy to websocket
+	// Constantly read websocket and copy to tty
 	go func() {
 		for {
-			buf := make([]byte, 1024)
-			read, err := tty.Read(buf)
-			fmt.Printf("\n%x ||", buf[:read])
-			// Client dropped connection (closed tab)
+			messageType, reader, err := conn.NextReader()
 			if err != nil {
-				conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
-				l.WithError(err).Error("Unable to read from pty/cmd")
-				stopContainer(containerName)
+				l.WithError(err).Error("Unable to grab next reader")
 				return
 			}
-			conn.WriteMessage(websocket.BinaryMessage, bytes.ToValidUTF8(buf[:read], []byte{}))
+
+			if messageType == websocket.TextMessage {
+				l.Warn("Unexpected text message")
+				conn.WriteMessage(websocket.TextMessage, []byte("Unexpected text message"))
+				continue
+			}
+
+			dataTypeBuf := make([]byte, 1)
+			read, err := reader.Read(dataTypeBuf)
+			if err != nil {
+				l.WithError(err).Error("Unable to read message type from reader")
+				conn.WriteMessage(websocket.TextMessage, []byte("Unable to read message type from reader"))
+				return
+			}
+
+			if read != 1 {
+				l.WithField("bytes", read).Error("Unexpected number of bytes read")
+				return
+			}
+
+			switch dataTypeBuf[0] {
+			// It's a binary data message
+			case 0:
+				copied, err := io.Copy(tty, reader)
+				if err != nil {
+					l.WithError(err).Errorf("Error after copying %d bytes", copied)
+				}
+			case 1:
+				log.Println("RESIZE!")
+				decoder := json.NewDecoder(reader)
+				resizeMessage := windowSize{}
+				err := decoder.Decode(&resizeMessage)
+				if err != nil {
+					conn.WriteMessage(websocket.TextMessage, []byte("Error decoding resize message: "+err.Error()))
+					continue
+				}
+				log.WithField("resizeMessage", resizeMessage).Info("Resizing terminal")
+				_, _, errno := syscall.Syscall(
+					syscall.SYS_IOCTL,
+					tty.Fd(),
+					syscall.TIOCSWINSZ,
+					uintptr(unsafe.Pointer(&resizeMessage)),
+				)
+				if errno != 0 {
+					l.WithError(syscall.Errno(errno)).Error("Unable to resize terminal")
+				}
+			default:
+				l.WithField("dataType", dataTypeBuf[0]).Error("Unknown data type")
+			}
 		}
 	}()
 
-	// Constantly read websocket and copy to tty
+	// Constantly read from process and copy to websocket
 	for {
-		messageType, reader, err := conn.NextReader()
+		ttywriter, err := conn.NextWriter(websocket.BinaryMessage)
+		buf := make([]byte, 1024)
+		read, err := tty.Read(buf)
+		fmt.Printf("\n%x", buf[:read])
+		// Client dropped connection (closed tab)
 		if err != nil {
-			l.WithError(err).Error("Unable to grab next reader")
+			conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+			l.WithError(err).Error("Unable to read from pty/cmd")
+			stopContainer(containerName)
 			return
 		}
-
-		if messageType == websocket.TextMessage {
-			l.Warn("Unexpected text message")
-			conn.WriteMessage(websocket.TextMessage, []byte("Unexpected text message"))
-			continue
-		}
-
-		dataTypeBuf := make([]byte, 1)
-		read, err := reader.Read(dataTypeBuf)
-		if err != nil {
-			l.WithError(err).Error("Unable to read message type from reader")
-			conn.WriteMessage(websocket.TextMessage, []byte("Unable to read message type from reader"))
-			return
-		}
-
-		if read != 1 {
-			l.WithField("bytes", read).Error("Unexpected number of bytes read")
-			return
-		}
-
-		switch dataTypeBuf[0] {
-		case 0:
-			copied, err := io.Copy(tty, reader)
-			if err != nil {
-				l.WithError(err).Errorf("Error after copying %d bytes", copied)
-			}
-		case 1:
-			log.Println("RESIZE!")
-			decoder := json.NewDecoder(reader)
-			resizeMessage := windowSize{}
-			err := decoder.Decode(&resizeMessage)
-			if err != nil {
-				conn.WriteMessage(websocket.TextMessage, []byte("Error decoding resize message: "+err.Error()))
-				continue
-			}
-			log.WithField("resizeMessage", resizeMessage).Info("Resizing terminal")
-			_, _, errno := syscall.Syscall(
-				syscall.SYS_IOCTL,
-				tty.Fd(),
-				syscall.TIOCSWINSZ,
-				uintptr(unsafe.Pointer(&resizeMessage)),
-			)
-			if errno != 0 {
-				l.WithError(syscall.Errno(errno)).Error("Unable to resize terminal")
-			}
-		default:
-			l.WithField("dataType", dataTypeBuf[0]).Error("Unknown data type")
-		}
+		ttywriter.Write(bytes.ToValidUTF8(buf[:read], []byte{}))
+		ttywriter.Close()
 	}
 }
 
