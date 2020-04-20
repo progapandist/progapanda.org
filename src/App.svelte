@@ -117,9 +117,9 @@
 
       if (term) {
         const fitAddon = new FitAddon();
-
+        const linksAddon = new WebLinksAddon();
         term.loadAddon(fitAddon);
-        terminal.loadAddon(new WebLinksAddon());
+        term.loadAddon(linksAddon);
         term.setOption("logLevel", "debug");
 
         term.onData(function(data) {
@@ -140,8 +140,9 @@
         });
 
         term.open(terminalDiv);
-        term.focus();
         fitAddon.fit();
+        term.focus();
+        linksAddon.activate();
       }
     };
 
@@ -164,18 +165,16 @@
 </script>
 
 <style>
-  h1 {
-    color: white;
-  }
-
-  p {
-    color: white;
+  :global(body) {
+    /* this will apply to <body> */
+    margin: 0;
+    background-color: black;
   }
 
   main {
     background-color: black;
     margin: 0;
-    height: 100vh;
+    height: 80vh;
   }
 
   #xterm {

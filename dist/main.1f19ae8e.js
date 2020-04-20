@@ -2336,8 +2336,8 @@ var file = "App.svelte";
 
 function add_css() {
   var style = (0, _internal.element)("style");
-  style.id = "svelte-xchg9x-style";
-  style.textContent = "main.svelte-xchg9x{background-color:black;margin:0;height:100vh}#xterm.svelte-xchg9x{width:100%;height:100%}\n";
+  style.id = "svelte-f2dm7j-style";
+  style.textContent = "body{margin:0;background-color:black}main.svelte-f2dm7j{background-color:black;margin:0;height:80vh}#xterm.svelte-f2dm7j{width:100%;height:100%}\n";
   (0, _internal.append_dev)(document_1.head, style);
 }
 
@@ -2349,10 +2349,10 @@ function create_fragment(ctx) {
       main = (0, _internal.element)("main");
       div = (0, _internal.element)("div");
       (0, _internal.attr_dev)(div, "id", "xterm");
-      (0, _internal.attr_dev)(div, "class", "svelte-xchg9x");
-      (0, _internal.add_location)(div, file, 186, 2, 4957);
-      (0, _internal.attr_dev)(main, "class", "svelte-xchg9x");
-      (0, _internal.add_location)(main, file, 185, 0, 4948);
+      (0, _internal.attr_dev)(div, "class", "svelte-f2dm7j");
+      (0, _internal.add_location)(div, file, 186, 2, 5114);
+      (0, _internal.attr_dev)(main, "class", "svelte-f2dm7j");
+      (0, _internal.add_location)(main, file, 185, 0, 5105);
     },
     l: function claim(nodes) {
       throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
@@ -2495,7 +2495,9 @@ function instance($$self, $$props, $$invalidate) {
 
       if (term) {
         var fitAddon = new _xtermAddonFit.FitAddon();
+        var linksAddon = new _xtermAddonWebLinks.WebLinksAddon();
         term.loadAddon(fitAddon);
+        term.loadAddon(linksAddon);
         term.setOption("logLevel", "debug");
         term.onData(function (data) {
           websocket.send(new TextEncoder().encode("\0" + data));
@@ -2511,8 +2513,9 @@ function instance($$self, $$props, $$invalidate) {
           document.title = title;
         });
         term.open(terminalDiv);
-        term.focus();
         fitAddon.fit();
+        term.focus();
+        linksAddon.activate();
       }
     };
 
@@ -2583,7 +2586,7 @@ var App = /*#__PURE__*/function (_SvelteComponentDev) {
     _classCallCheck(this, App);
 
     _this = _super.call(this, options);
-    if (!document_1.getElementById("svelte-xchg9x-style")) add_css();
+    if (!document_1.getElementById("svelte-f2dm7j-style")) add_css();
     (0, _internal.init)(_assertThisInitialized(_this), options, instance, create_fragment, _internal.safe_not_equal, {});
     (0, _internal.dispatch_dev)("SvelteRegisterComponent", {
       component: _assertThisInitialized(_this),
@@ -2644,7 +2647,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "63977" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "49261" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

@@ -73,9 +73,9 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	containerName := containerNameBasedOnPort(conn.RemoteAddr())
-	// cmd := runContainer(containerName)
-	cmd := exec.Command("/bin/zsh")
-	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
+	cmd := runContainer(containerName)
+	// cmd := exec.Command("/bin/zsh")
+	// cmd.Env = append(os.Environ(), "TERM=xterm-256color")
 
 	tty, err := pty.Start(cmd)
 	if err != nil {
@@ -97,6 +97,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 			messageType, reader, err := conn.NextReader()
 			if err != nil {
 				l.WithError(err).Error("Unable to grab next reader")
+				stopContainer(containerName)
 				return
 			}
 
