@@ -1,6 +1,8 @@
 <script>
   import { Terminal } from "xterm";
   import { onMount } from "svelte";
+  import { FitAddon } from "xterm-addon-fit";
+  import { WebLinksAddon } from "xterm-addon-web-links";
   import "xterm/css/xterm.css";
 
   let UTF8Decoder = function() {
@@ -114,14 +116,18 @@
       });
 
       if (term) {
+        const fitAddon = new FitAddon();
+
+        term.loadAddon(fitAddon);
+        terminal.loadAddon(new WebLinksAddon());
         term.setOption("logLevel", "debug");
-        console.log(term.cols, "x", term.rows);
 
         term.onData(function(data) {
           websocket.send(new TextEncoder().encode("\x00" + data));
         });
 
         term.onResize(function(evt) {
+          console.log(term.rows, "x", term.cols);
           websocket.send(
             new TextEncoder().encode(
               "\x01" + JSON.stringify({ cols: evt.cols, rows: evt.rows })
@@ -135,6 +141,7 @@
 
         term.open(terminalDiv);
         term.focus();
+        fitAddon.fit();
       }
     };
 
@@ -168,11 +175,12 @@
   main {
     background-color: black;
     margin: 0;
+    height: 100vh;
   }
 
   #xterm {
     width: 100%;
-    height: 100vh;
+    height: 100%;
   }
 </style>
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -74,7 +75,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	containerName := containerNameBasedOnPort(conn.RemoteAddr())
 	// cmd := runContainer(containerName)
 	cmd := exec.Command("/bin/zsh")
-	cmd.Env = append(os.Environ(), "TERM=xterm")
+	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
 
 	tty, err := pty.Start(cmd)
 	if err != nil {
@@ -155,7 +156,6 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		ttywriter, err := conn.NextWriter(websocket.BinaryMessage)
 		buf := make([]byte, 1024)
 		read, err := tty.Read(buf)
-		fmt.Printf("\n%x", buf[:read])
 		// Client dropped connection (closed tab)
 		if err != nil {
 			conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
@@ -163,7 +163,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 			stopContainer(containerName)
 			return
 		}
-		ttywriter.Write(buf[:read])
+		ttywriter.Write(bytes.ToValidUTF8(buf[:read], []byte{}))
 		ttywriter.Close()
 	}
 }
