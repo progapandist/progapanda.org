@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -75,6 +74,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	containerName := containerNameBasedOnPort(conn.RemoteAddr())
 	// cmd := runContainer(containerName)
 	cmd := exec.Command("/bin/zsh")
+	cmd.Env = append(os.Environ(), "TERM=xterm")
 
 	tty, err := pty.Start(cmd)
 	if err != nil {
@@ -163,7 +163,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 			stopContainer(containerName)
 			return
 		}
-		ttywriter.Write(bytes.ToValidUTF8(buf[:read], []byte{}))
+		ttywriter.Write(buf[:read])
 		ttywriter.Close()
 	}
 }
