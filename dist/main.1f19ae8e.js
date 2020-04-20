@@ -2219,6 +2219,107 @@ var define;
 var define;
 !function(e,t){"object"==typeof exports&&"object"==typeof module?module.exports=t():"function"==typeof define&&define.amd?define([],t):"object"==typeof exports?exports.WebLinksAddon=t():e.WebLinksAddon=t()}(window,(function(){return function(e){var t={};function n(r){if(t[r])return t[r].exports;var i=t[r]={i:r,l:!1,exports:{}};return e[r].call(i.exports,i,i.exports,n),i.l=!0,i.exports}return n.m=e,n.c=t,n.d=function(e,t,r){n.o(e,t)||Object.defineProperty(e,t,{enumerable:!0,get:r})},n.r=function(e){"undefined"!=typeof Symbol&&Symbol.toStringTag&&Object.defineProperty(e,Symbol.toStringTag,{value:"Module"}),Object.defineProperty(e,"__esModule",{value:!0})},n.t=function(e,t){if(1&t&&(e=n(e)),8&t)return e;if(4&t&&"object"==typeof e&&e&&e.__esModule)return e;var r=Object.create(null);if(n.r(r),Object.defineProperty(r,"default",{enumerable:!0,value:e}),2&t&&"string"!=typeof e)for(var i in e)n.d(r,i,function(t){return e[t]}.bind(null,i));return r},n.n=function(e){var t=e&&e.__esModule?function(){return e.default}:function(){return e};return n.d(t,"a",t),t},n.o=function(e,t){return Object.prototype.hasOwnProperty.call(e,t)},n.p="",n(n.s=0)}([function(e,t,n){"use strict";Object.defineProperty(t,"__esModule",{value:!0});var r=n(1),i=new RegExp("(?:^|[^\\da-z\\.-]+)((https?:\\/\\/)((([\\da-z\\.-]+)\\.([a-z\\.]{2,6}))|((\\d{1,3}\\.){3}\\d{1,3})|(localhost))(:\\d{1,5})?((\\/[\\/\\w\\.\\-%~:+]*)*([^:\"'\\s]))?(\\?[0-9\\w\\[\\]\\(\\)\\/\\?\\!#@$%&'*+,:;~\\=\\.\\-]*)?(#[0-9\\w\\[\\]\\(\\)\\/\\?\\!#@$%&'*+,:;~\\=\\.\\-]*)?)($|[^\\/\\w\\.\\-%]+)");function o(e,t){var n=window.open();n?(n.opener=null,n.location.href=t):console.warn("Opening link blocked as opener could not be cleared")}var a=function(){function e(e,t,n){void 0===e&&(e=o),void 0===t&&(t={}),void 0===n&&(n=!1),this._handler=e,this._options=t,this._useLinkProvider=n,this._options.matchIndex=1}return e.prototype.activate=function(e){this._terminal=e,this._useLinkProvider&&"registerLinkProvider"in this._terminal?this._linkProvider=this._terminal.registerLinkProvider(new r.WebLinkProvider(this._terminal,i,this._handler)):this._linkMatcherId=this._terminal.registerLinkMatcher(i,this._handler,this._options)},e.prototype.dispose=function(){var e;void 0!==this._linkMatcherId&&void 0!==this._terminal&&this._terminal.deregisterLinkMatcher(this._linkMatcherId),null===(e=this._linkProvider)||void 0===e||e.dispose()},e}();t.WebLinksAddon=a},function(e,t,n){"use strict";Object.defineProperty(t,"__esModule",{value:!0});var r=function(){function e(e,t,n){this._terminal=e,this._regex=t,this._handler=n}return e.prototype.provideLink=function(e,t){t(i.computeLink(e,this._regex,this._terminal,this._handler))},e}();t.WebLinkProvider=r;var i=function(){function e(){}return e.computeLink=function(t,n,r,i){for(var o,a=new RegExp(n.source,(n.flags||"")+"g"),s=e._translateBufferLineToStringWithWrap(t.y-1,!1,r),u=s[0],d=s[1],l=-1;null!==(o=a.exec(u));){var c=o[1];if(!c){console.log("match found without corresponding matchIndex");break}if(l=u.indexOf(c,l+1),a.lastIndex=l+c.length,l<0)break;for(var f=l+c.length,p=d+1;f>r.cols;)f-=r.cols,p++;return{range:{start:{x:l+1,y:d+1},end:{x:f,y:p}},text:c,activate:i}}},e._translateBufferLineToStringWithWrap=function(e,t,n){var r,i,o="";do{if(!(s=n.buffer.active.getLine(e)))break;s.isWrapped&&e--,i=s.isWrapped}while(i);var a=e;do{var s,u=n.buffer.active.getLine(e+1);if(r=!!u&&u.isWrapped,!(s=n.buffer.active.getLine(e)))break;o+=s.translateToString(!r&&t).substring(0,n.cols),e++}while(r);return[o,a]},e}();t.LinkComputer=i}])}));
 
+},{}],"decoder.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+var UTF8Decoder = function UTF8Decoder() {
+  // The number of bytes left in the current sequence.
+  this.bytesLeft = 0; // The in-progress code point being decoded, if bytesLeft > 0.
+
+  this.codePoint = 0; // The lower bound on the final code point, if bytesLeft > 0.
+
+  this.lowerBound = 0;
+};
+/**
+ * Decodes a some UTF-8 data, taking into account state from previous
+ * data streamed through the encoder.
+ *
+ * @param {String} str data to decode, represented as a JavaScript
+ *     String with each code unit representing a byte between 0x00 to
+ *     0xFF.
+ * @return {String} The data decoded into a JavaScript UTF-16 string.
+ */
+
+
+UTF8Decoder.prototype.decode = function (str) {
+  var ret = "";
+
+  for (var i = 0; i < str.length; i++) {
+    var c = str.charCodeAt(i);
+
+    if (this.bytesLeft == 0) {
+      if (c <= 0x7f) {
+        ret += str.charAt(i);
+      } else if (0xc0 <= c && c <= 0xdf) {
+        this.codePoint = c - 0xc0;
+        this.bytesLeft = 1;
+        this.lowerBound = 0x80;
+      } else if (0xe0 <= c && c <= 0xef) {
+        this.codePoint = c - 0xe0;
+        this.bytesLeft = 2;
+        this.lowerBound = 0x800;
+      } else if (0xf0 <= c && c <= 0xf7) {
+        this.codePoint = c - 0xf0;
+        this.bytesLeft = 3;
+        this.lowerBound = 0x10000;
+      } else if (0xf8 <= c && c <= 0xfb) {
+        this.codePoint = c - 0xf8;
+        this.bytesLeft = 4;
+        this.lowerBound = 0x200000;
+      } else if (0xfc <= c && c <= 0xfd) {
+        this.codePoint = c - 0xfc;
+        this.bytesLeft = 5;
+        this.lowerBound = 0x4000000;
+      } else {
+        ret += "\uFFFD";
+      }
+    } else {
+      if (0x80 <= c && c <= 0xbf) {
+        this.bytesLeft--;
+        this.codePoint = (this.codePoint << 6) + (c - 0x80);
+
+        if (this.bytesLeft == 0) {
+          // Got a full sequence. Check if it's within bounds and
+          // filter out surrogate pairs.
+          var codePoint = this.codePoint;
+
+          if (codePoint < this.lowerBound || 0xd800 <= codePoint && codePoint <= 0xdfff || codePoint > 0x10ffff) {
+            ret += "\uFFFD";
+          } else {
+            // Encode as UTF-16 in the output.
+            if (codePoint < 0x10000) {
+              ret += String.fromCharCode(codePoint);
+            } else {
+              // Surrogate pair.
+              codePoint -= 0x10000;
+              ret += String.fromCharCode(0xd800 + (codePoint >>> 10 & 0x3ff), 0xdc00 + (codePoint & 0x3ff));
+            }
+          }
+        }
+      } else {
+        // Too few bytes in multi-byte sequence. Rewind stream so we
+        // don't lose the next byte.
+        ret += "\uFFFD";
+        this.bytesLeft = 0;
+        i--;
+      }
+    }
+  }
+
+  return ret;
+};
+
+var decodeUTF8 = function decodeUTF8(utf8) {
+  return new UTF8Decoder().decode(utf8);
+};
+
+var _default = decodeUTF8;
+exports.default = _default;
 },{}],"../node_modules/parcel-bundler/src/builtins/bundle-url.js":[function(require,module,exports) {
 var bundleURL = null;
 
@@ -2310,7 +2411,11 @@ var _xtermAddonFit = require("xterm-addon-fit");
 
 var _xtermAddonWebLinks = require("xterm-addon-web-links");
 
+var _decoder = _interopRequireDefault(require("./decoder"));
+
 require("xterm/css/xterm.css");
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
 
@@ -2336,8 +2441,8 @@ var file = "App.svelte";
 
 function add_css() {
   var style = (0, _internal.element)("style");
-  style.id = "svelte-f2dm7j-style";
-  style.textContent = "body{margin:0;background-color:black}main.svelte-f2dm7j{background-color:black;margin:0;height:80vh}#xterm.svelte-f2dm7j{width:100%;height:100%}\n";
+  style.id = "svelte-1u9iihm-style";
+  style.textContent = "body{margin:0;background-color:black}main.svelte-1u9iihm{background-color:black;margin:0;height:80vh}#xterm.svelte-1u9iihm{width:100%;height:100%}\n";
   (0, _internal.append_dev)(document_1.head, style);
 }
 
@@ -2349,10 +2454,10 @@ function create_fragment(ctx) {
       main = (0, _internal.element)("main");
       div = (0, _internal.element)("div");
       (0, _internal.attr_dev)(div, "id", "xterm");
-      (0, _internal.attr_dev)(div, "class", "svelte-f2dm7j");
-      (0, _internal.add_location)(div, file, 186, 2, 5114);
-      (0, _internal.attr_dev)(main, "class", "svelte-f2dm7j");
-      (0, _internal.add_location)(main, file, 185, 0, 5105);
+      (0, _internal.attr_dev)(div, "class", "svelte-1u9iihm");
+      (0, _internal.add_location)(div, file, 98, 2, 2206);
+      (0, _internal.attr_dev)(main, "class", "svelte-1u9iihm");
+      (0, _internal.add_location)(main, file, 97, 0, 2197);
     },
     l: function claim(nodes) {
       throw new Error("options.hydrate only works if the component was compiled with the `hydratable: true` option");
@@ -2362,7 +2467,7 @@ function create_fragment(ctx) {
       (0, _internal.append_dev)(main, div);
       /*div_binding*/
 
-      ctx[3](div);
+      ctx[1](div);
     },
     p: _internal.noop,
     i: _internal.noop,
@@ -2371,7 +2476,7 @@ function create_fragment(ctx) {
       if (detaching) (0, _internal.detach_dev)(main);
       /*div_binding*/
 
-      ctx[3](null);
+      ctx[1](null);
     }
   };
   (0, _internal.dispatch_dev)("SvelteRegisterBlock", {
@@ -2385,105 +2490,14 @@ function create_fragment(ctx) {
 }
 
 function instance($$self, $$props, $$invalidate) {
-  var UTF8Decoder = function UTF8Decoder() {
-    // The number of bytes left in the current sequence.
-    this.bytesLeft = 0; // The in-progress code point being decoded, if bytesLeft > 0.
-
-    this.codePoint = 0; // The lower bound on the final code point, if bytesLeft > 0.
-
-    this.lowerBound = 0;
-  };
-  /**
-  * Decodes a some UTF-8 data, taking into account state from previous
-  * data streamed through the encoder.
-  *
-  * @param {String} str data to decode, represented as a JavaScript
-  *     String with each code unit representing a byte between 0x00 to
-  *     0xFF.
-  * @return {String} The data decoded into a JavaScript UTF-16 string.
-  */
-
-
-  UTF8Decoder.prototype.decode = function (str) {
-    var ret = "";
-
-    for (var i = 0; i < str.length; i++) {
-      var c = str.charCodeAt(i);
-
-      if (this.bytesLeft == 0) {
-        if (c <= 127) {
-          ret += str.charAt(i);
-        } else if (192 <= c && c <= 223) {
-          this.codePoint = c - 192;
-          this.bytesLeft = 1;
-          this.lowerBound = 128;
-        } else if (224 <= c && c <= 239) {
-          this.codePoint = c - 224;
-          this.bytesLeft = 2;
-          this.lowerBound = 2048;
-        } else if (240 <= c && c <= 247) {
-          this.codePoint = c - 240;
-          this.bytesLeft = 3;
-          this.lowerBound = 65536;
-        } else if (248 <= c && c <= 251) {
-          this.codePoint = c - 248;
-          this.bytesLeft = 4;
-          this.lowerBound = 2097152;
-        } else if (252 <= c && c <= 253) {
-          this.codePoint = c - 252;
-          this.bytesLeft = 5;
-          this.lowerBound = 67108864;
-        } else {
-          ret += "�";
-        }
-      } else {
-        if (128 <= c && c <= 191) {
-          this.bytesLeft--;
-          this.codePoint = (this.codePoint << 6) + (c - 128);
-
-          if (this.bytesLeft == 0) {
-            // Got a full sequence. Check if it's within bounds and
-            // filter out surrogate pairs.
-            var codePoint = this.codePoint;
-
-            if (codePoint < this.lowerBound || 55296 <= codePoint && codePoint <= 57343 || codePoint > 1114111) {
-              ret += "�";
-            } else {
-              // Encode as UTF-16 in the output.
-              if (codePoint < 65536) {
-                ret += String.fromCharCode(codePoint);
-              } else {
-                // Surrogate pair.
-                codePoint -= 65536;
-                ret += String.fromCharCode(55296 + (codePoint >>> 10 & 1023), 56320 + (codePoint & 1023));
-              }
-            }
-          }
-        } else {
-          // Too few bytes in multi-byte sequence. Rewind stream so we
-          // don't lose the next byte.
-          ret += "�";
-          this.bytesLeft = 0;
-          i--;
-        }
-      }
-    }
-
-    return ret;
-  };
-
-  var decodeUTF8 = function decodeUTF8(utf8) {
-    return new UTF8Decoder().decode(utf8);
-  };
-
   var terminalDiv;
   (0, _svelte.onMount)(function () {
     var term = null;
-    var websocket = new WebSocket("ws://localhost:4567/term");
+    var websocket = new WebSocket("wss://progapanda-ws.ngrok.io/term");
     websocket.binaryType = "arraybuffer"; // ????
 
-    function ab2str(buf) {
-      return decodeUTF8(String.fromCharCode.apply(null, new Uint8Array(buf)));
+    function binaryString(buf) {
+      return (0, _decoder.default)(String.fromCharCode.apply(null, new Uint8Array(buf)));
     }
 
     websocket.onopen = function (evt) {
@@ -2494,11 +2508,12 @@ function instance($$self, $$props, $$invalidate) {
       });
 
       if (term) {
+        // term.setOption("logLevel", "debug");
+        term.setOption("fontSize", 18);
         var fitAddon = new _xtermAddonFit.FitAddon();
         var linksAddon = new _xtermAddonWebLinks.WebLinksAddon();
         term.loadAddon(fitAddon);
         term.loadAddon(linksAddon);
-        term.setOption("logLevel", "debug");
         term.onData(function (data) {
           websocket.send(new TextEncoder().encode("\0" + data));
         });
@@ -2515,12 +2530,14 @@ function instance($$self, $$props, $$invalidate) {
         term.open(terminalDiv);
         fitAddon.fit();
         term.focus();
-        linksAddon.activate();
+        window.addEventListener("resize", function () {
+          fitAddon.fit();
+        });
       }
     };
 
     websocket.onmessage = function (evt) {
-      term.write(ab2str(evt.data));
+      term.write(binaryString(evt.data));
     };
 
     websocket.onclose = function (evt) {
@@ -2556,15 +2573,12 @@ function instance($$self, $$props, $$invalidate) {
       onMount: _svelte.onMount,
       FitAddon: _xtermAddonFit.FitAddon,
       WebLinksAddon: _xtermAddonWebLinks.WebLinksAddon,
-      UTF8Decoder: UTF8Decoder,
-      decodeUTF8: decodeUTF8,
+      decodeUTF8: _decoder.default,
       terminalDiv: terminalDiv
     };
   };
 
   $$self.$inject_state = function ($$props) {
-    if ("UTF8Decoder" in $$props) UTF8Decoder = $$props.UTF8Decoder;
-    if ("decodeUTF8" in $$props) decodeUTF8 = $$props.decodeUTF8;
     if ("terminalDiv" in $$props) $$invalidate(0, terminalDiv = $$props.terminalDiv);
   };
 
@@ -2572,7 +2586,7 @@ function instance($$self, $$props, $$invalidate) {
     $$self.$inject_state($$props.$$inject);
   }
 
-  return [terminalDiv, UTF8Decoder, decodeUTF8, div_binding];
+  return [terminalDiv, div_binding];
 }
 
 var App = /*#__PURE__*/function (_SvelteComponentDev) {
@@ -2586,7 +2600,7 @@ var App = /*#__PURE__*/function (_SvelteComponentDev) {
     _classCallCheck(this, App);
 
     _this = _super.call(this, options);
-    if (!document_1.getElementById("svelte-f2dm7j-style")) add_css();
+    if (!document_1.getElementById("svelte-1u9iihm-style")) add_css();
     (0, _internal.init)(_assertThisInitialized(_this), options, instance, create_fragment, _internal.safe_not_equal, {});
     (0, _internal.dispatch_dev)("SvelteRegisterComponent", {
       component: _assertThisInitialized(_this),
@@ -2602,7 +2616,7 @@ var App = /*#__PURE__*/function (_SvelteComponentDev) {
 
 var _default = App;
 exports.default = _default;
-},{"svelte/internal":"../node_modules/svelte/internal/index.mjs","xterm":"../node_modules/xterm/lib/xterm.js","svelte":"../node_modules/svelte/index.mjs","xterm-addon-fit":"../node_modules/xterm-addon-fit/lib/xterm-addon-fit.js","xterm-addon-web-links":"../node_modules/xterm-addon-web-links/lib/xterm-addon-web-links.js","xterm/css/xterm.css":"../node_modules/xterm/css/xterm.css","_css_loader":"../node_modules/parcel-bundler/src/builtins/css-loader.js"}],"main.js":[function(require,module,exports) {
+},{"svelte/internal":"../node_modules/svelte/internal/index.mjs","xterm":"../node_modules/xterm/lib/xterm.js","svelte":"../node_modules/svelte/index.mjs","xterm-addon-fit":"../node_modules/xterm-addon-fit/lib/xterm-addon-fit.js","xterm-addon-web-links":"../node_modules/xterm-addon-web-links/lib/xterm-addon-web-links.js","./decoder":"decoder.js","xterm/css/xterm.css":"../node_modules/xterm/css/xterm.css","_css_loader":"../node_modules/parcel-bundler/src/builtins/css-loader.js"}],"main.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -2647,7 +2661,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "49261" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "54124" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

@@ -48,6 +48,7 @@ func runContainer(name string) *exec.Cmd {
 		name,
 		"progapandist/hello",
 		"sh",
+		// "./hello",
 	)
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
 	return cmd
@@ -128,7 +129,6 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 					l.WithError(err).Errorf("Error after copying %d bytes", copied)
 				}
 			case 1:
-				log.Println("RESIZE!")
 				decoder := json.NewDecoder(reader)
 				resizeMessage := windowSize{}
 				err := decoder.Decode(&resizeMessage)
