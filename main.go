@@ -76,8 +76,6 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 
 	containerName := containerNameBasedOnPort(conn.RemoteAddr())
 	cmd := runContainer(containerName)
-	// cmd := exec.Command("/bin/zsh")
-	// cmd.Env = append(os.Environ(), "TERM=xterm-256color")
 
 	tty, err := pty.Start(cmd)
 	if err != nil {
