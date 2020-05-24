@@ -43,6 +43,7 @@ func runContainer(name string) *exec.Cmd {
 		"docker",
 		"run",
 		"-it",
+		"--cpus=.1",
 		"--network",
 		"none",
 		"--rm",
