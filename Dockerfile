@@ -1,8 +1,9 @@
-FROM ubuntu
+FROM alpine
 
 WORKDIR /app
-COPY bin/hello .
+COPY dist/ ./dist
+COPY webterm .
+RUN apk add docker-cli
 
-ENV LANG=C.UTF-8
-
-CMD ["./hello"]
+CMD ["./webterm"]
+EXPOSE 4567

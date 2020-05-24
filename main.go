@@ -48,7 +48,6 @@ func runContainer(name string) *exec.Cmd {
 		name,
 		"progapandist/hello",
 		"sh",
-		// "./hello",
 	)
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
 	return cmd
@@ -172,6 +171,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/term", handleWebsocket)
+	r.PathPrefix("/").Handler(http.FileServer(http.Dir("dist")))
 
 	if err := http.ListenAndServe(":4567", r); err != nil {
 		log.WithError(err).Fatal("Something went wrong with the webserver")

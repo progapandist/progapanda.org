@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1alpha2
+kind: Certificate
+metadata:
+  name: progapanda-tls
+spec:
+  secretName: progapanda-tls
+
+  dnsNames:
+    - progapanda.org
+
+  issuerRef:
+    name: letsencrypt-prod-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io

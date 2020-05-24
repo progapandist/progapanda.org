@@ -1,4 +1,5 @@
 <script>
+  import "./font.css";
   import { Terminal } from "xterm";
   import { onMount } from "svelte";
   import { FitAddon } from "xterm-addon-fit";
@@ -10,7 +11,8 @@
 
   onMount(() => {
     let term = null;
-    var websocket = new WebSocket("wss://progapanda-ws.ngrok.io/term");
+    // TODO: Introduce dev/prod switching based on ENV
+    var websocket = new WebSocket("wss://progapanda.org/term");
     websocket.binaryType = "arraybuffer"; // ????
 
     function binaryString(buf) {
@@ -25,8 +27,7 @@
       });
 
       if (term) {
-        // term.setOption("logLevel", "debug");
-        term.setOption("fontSize", 18);
+        term.setOption("logLevel", "debug");
         const fitAddon = new FitAddon();
         const linksAddon = new WebLinksAddon();
         term.loadAddon(fitAddon);
@@ -45,33 +46,36 @@
           );
         });
 
+        websocket.onmessage = function(evt) {
+          term.write(binaryString(evt.data));
+          fitAddon.fit();
+        };
+
+        websocket.onclose = function(evt) {
+          if (term) {
+            term.write("Session terminated");
+          }
+        };
+
+        websocket.onerror = function(evt) {
+          if (typeof console.log == "function") {
+            console.log(evt);
+          }
+        };
+
         term.onTitleChange(function(title) {
           document.title = title;
         });
 
+        term.setOption("fontFamily", "VT323-Regular");
+        term.setOption("fontSize", 24);
+
         term.open(terminalDiv);
-        fitAddon.fit();
         term.focus();
 
         window.addEventListener("resize", () => {
           fitAddon.fit();
         });
-      }
-    };
-
-    websocket.onmessage = function(evt) {
-      term.write(binaryString(evt.data));
-    };
-
-    websocket.onclose = function(evt) {
-      if (term) {
-        term.write("Session terminated");
-      }
-    };
-
-    websocket.onerror = function(evt) {
-      if (typeof console.log == "function") {
-        console.log(evt);
       }
     };
   });
@@ -86,7 +90,7 @@
   main {
     background-color: black;
     margin: 0;
-    height: 80vh;
+    height: 100vh;
   }
 
   #xterm {

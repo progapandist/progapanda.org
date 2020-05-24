@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: progapanda-org
+  labels:
+    app.kubernetes.io/name: progapanda-org
+    app.kubernetes.io/instance: progapanda-org
+    app.kubernetes.io/version: "1"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: progapanda-org
+      app.kubernetes.io/instance: progapanda-org
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: progapanda-org
+        app.kubernetes.io/instance: progapanda-org
+    spec:
+      containers:
+        - name: progapanda-org
+          image: "docker.io/progapandist/progapanda-org"
+          command:
+            - ./webterm
+          env:
+            - name: DOCKER_TLS_VERIFY
+              value: "1"
+            - name: DOCKER_HOST
+              value: tcp://127.0.0.1:2376
+            - name: DOCKER_TLS_CERTDIR # For dind
+              value: /certs/client
+            - name: DOCKER_CERT_PATH # For swipely/docker-api
+              value: /certs/client
+          imagePullPolicy: Always
+          volumeMounts:
+            - name: docker-certs
+              mountPath: /certs
+          ports:
+            - name: http
+              containerPort: 4567
+              protocol: TCP
+
+        # DIND sidecar
+        - name: dind-daemon
+          image: docker:stable-dind
+          env:
+            - name: DOCKER_TLS_CERTDIR
+              value: /certs
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: docker-certs
+              mountPath: /certs
+            - name: docker-graph-storage
+              mountPath: /var/lib/docker
+          ports:
+            - name: docker
+              containerPort: 2376
+              protocol: TCP
+
+      # Volumes
+      volumes:
+        - name: docker-certs
+          hostPath:
+            path: /certs
+        - name: docker-graph-storage
+          emptyDir: {}

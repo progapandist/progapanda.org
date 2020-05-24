@@ -1,0 +1,22 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: progapanda-ingress
+  annotations:
+    kubernetes.io/ingress.class: "traefik"
+    certmanager.k8s.io/issuer: "letsencrypt-prod-issuer"
+    certmanager.k8s.io/acme-challenge-type: http01
+
+spec:
+  tls:
+    - hosts:
+        - progapanda.org
+      secretName: progapanda-tls
+  rules:
+    - host: progapanda.org
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: progapanda-org-service
+              servicePort: 80
