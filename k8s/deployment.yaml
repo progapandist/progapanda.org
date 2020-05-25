@@ -40,6 +40,13 @@ spec:
             - name: http
               containerPort: 4567
               protocol: TCP
+          resources:
+            requests:
+              cpu: 20m
+              memory: 128Mi
+            limits:
+              cpu: 40m
+              memory: 256Mi
 
         # DIND sidecar
         - name: dind-daemon
@@ -58,6 +65,15 @@ spec:
             - name: docker
               containerPort: 2376
               protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+              ephemeral-storage: 256Mi
+            limits:
+              cpu: 200m
+              memory: 1024Mi
+              ephemeral-storage: 512Mi
 
       # Volumes
       volumes:
