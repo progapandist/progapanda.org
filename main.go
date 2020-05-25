@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/creack/pty"
@@ -39,15 +40,16 @@ func containerNameBasedOnPort(ra net.Addr) string {
 }
 
 func runContainer(name string) *exec.Cmd {
+	time.Sleep(1 * time.Second)
 	cmd := exec.Command(
 		"docker",
 		"run",
 		"-it",
 		"--cpus=.1",
 		"--user=1000:1000",
-		"--memory=50M",
-		"--kernel-memory=20M",
-		"--memory-swappiness=0",
+		"--memory=64M",
+		"--kernel-memory=32M",
+		"--memory-swap=64M",
 		"--network",
 		"none",
 		"--rm",
