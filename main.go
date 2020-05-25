@@ -40,7 +40,7 @@ func containerNameBasedOnPort(ra net.Addr) string {
 }
 
 func runContainer(name string) *exec.Cmd {
-	time.Sleep(1 * time.Second)
+	time.Sleep(3 * time.Second)
 	cmd := exec.Command(
 		"docker",
 		"run",
