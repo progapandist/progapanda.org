@@ -44,6 +44,7 @@ func runContainer(name string) *exec.Cmd {
 		"run",
 		"-it",
 		"--cpus=.1",
+		"--user=1000:1000",
 		"--network",
 		"none",
 		"--rm",
