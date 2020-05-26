@@ -43,10 +43,10 @@ spec:
           resources:
             requests:
               cpu: 20m
-              memory: 128Mi
+              memory: 64Mi
             limits:
               cpu: 40m
-              memory: 256Mi
+              memory: 128Mi
 
         # DIND sidecar
         - name: dind-daemon
@@ -68,12 +68,12 @@ spec:
           resources:
             requests:
               cpu: 100m
-              memory: 256Mi
-              ephemeral-storage: 256Mi
+              memory: 128Mi
+              ephemeral-storage: 128Mi
             limits:
               cpu: 200m
-              memory: 1024Mi
-              ephemeral-storage: 512Mi
+              memory: 256Mi
+              ephemeral-storage: 256Mi
 
       # Volumes
       volumes:
