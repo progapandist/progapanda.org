@@ -15,6 +15,7 @@ Source code for https://progapanda.org
 - Xterm.js
 - Docker
 - k3s with [k3sup](https://github.com/alexellis/k3sup)
+- Digital Ocean $10 droplet :ok_hand:
 
 ## Why?
 
