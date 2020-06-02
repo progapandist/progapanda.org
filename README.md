@@ -1,6 +1,6 @@
 # progapanda.org
 
-Source code for https://progapanda.org
+Source code for :link: https://progapanda.org
 
 ![TUI](./doc/tui.png)
 ![Shell](./doc/term.png)
@@ -8,13 +8,13 @@ Source code for https://progapanda.org
 ## Stack:
 
 - Go
-- Gorilla Mux
-- WebSocket
-- [tview](https://github.com/rivo/tview) for Go TUI (not in this repo)
-- Svelte.js
-- Xterm.js
-- Docker
-- k3s with [k3sup](https://github.com/alexellis/k3sup)
+- Gorilla Mux :gorilla:
+- WebSocket :nail_care:
+- [tview](https://github.com/rivo/tview) for Go TUI (not in this repo) :tv:
+- Svelte.js :nail_care:
+- Xterm.js :computer:
+- Docker :ship:
+- k3s with [k3sup](https://github.com/alexellis/k3sup) :tomato:
 - Digital Ocean $10 droplet :ok_hand:
 
 ## Why?
