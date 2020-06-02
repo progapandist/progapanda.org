@@ -3,14 +3,14 @@ Source code for https://progapanda.org
 
 ## Stack: 
 
-- Go
-— Gorilla Mux
-- WebSocket
-- [tview](https://github.com/rivo/tview) for Go TUI (not in this repo)
-— Svelte.js
-- Xterm.js
-— Docker
-— k3s with [k3sup](https://github.com/alexellis/k3sup)
+* Go
+* Gorilla Mux
+* WebSocket
+* [tview](https://github.com/rivo/tview) for Go TUI (not in this repo)
+* Svelte.js
+* Xterm.js
+* Docker
+* k3s with [k3sup](https://github.com/alexellis/k3sup)
 
 ## Why? 
 
