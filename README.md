@@ -9,7 +9,7 @@ Source code for :link: https://progapanda.org
 
 - Go
 - Gorilla Mux :gorilla:
-- WebSocket :nail_care:
+- WebSocket :electric_plug:
 - [tview](https://github.com/rivo/tview) for Go TUI (not in this repo) :tv:
 - Svelte.js :nail_care:
 - Xterm.js :computer:
