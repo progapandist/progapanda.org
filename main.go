@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/creack/pty"
@@ -38,17 +39,21 @@ func containerNameBasedOnPort(ra net.Addr) string {
 	return "client-0"
 }
 
-func waitForDockerConnection() {
-	conn, err := net.Dial("tcp", "127.0.0.1:2376")
-	if conn == nil || err != nil {
-		waitForDockerConnection()
-	}
-}
-
 func runContainer(name string) *exec.Cmd {
-	waitForDockerConnection()
+	var cmd *exec.Cmd
+	// Blocking
+	_, err := net.DialTimeout("tcp", "127.0.0.1:2376", 1*time.Second)
 
-	cmd := exec.Command(
+	if err != nil {
+		fmt.Println(err)
+		cmd = exec.Command(
+			"echo",
+			"Oops, you're out of luck. Don't fret though! Refresh the page to reconnect to progapanda.org...",
+		)
+		return cmd
+	}
+
+	cmd = exec.Command(
 		"docker",
 		"run",
 		"-it",
@@ -65,6 +70,7 @@ func runContainer(name string) *exec.Cmd {
 		"progapandist/hello",
 		"sh",
 	)
+
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
 	return cmd
 }
