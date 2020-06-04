@@ -28,9 +28,9 @@ spec:
               value: "1"
             - name: DOCKER_HOST
               value: tcp://127.0.0.1:2376
-            - name: DOCKER_TLS_CERTDIR # For dind
+            - name: DOCKER_TLS_CERTDIR
               value: /certs/client
-            - name: DOCKER_CERT_PATH # For swipely/docker-api
+            - name: DOCKER_CERT_PATH
               value: /certs/client
           imagePullPolicy: Always
           volumeMounts:
