@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
-	"time"
 	"unsafe"
 
 	"github.com/creack/pty"
@@ -39,8 +38,16 @@ func containerNameBasedOnPort(ra net.Addr) string {
 	return "client-0"
 }
 
+func waitForDockerConnection() {
+	conn, err := net.Dial("tcp", "127.0.0.1:2376")
+	if conn == nil || err != nil {
+		waitForDockerConnection()
+	}
+}
+
 func runContainer(name string) *exec.Cmd {
-	time.Sleep(2 * time.Second)
+	waitForDockerConnection()
+
 	cmd := exec.Command(
 		"docker",
 		"run",
