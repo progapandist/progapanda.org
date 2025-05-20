@@ -173,7 +173,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 
 	// Constantly read from process and copy to websocket
 	for {
-		ttywriter, err := conn.NextWriter(websocket.BinaryMessage)
+		ttywriter, _ := conn.NextWriter(websocket.BinaryMessage)
 		buf := make([]byte, 1024)
 		read, err := tty.Read(buf)
 		// Client dropped connection (closed tab)
