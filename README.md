@@ -40,9 +40,13 @@ width, so the content files can stay readable.
 ```sh
 make run     # run it locally
 make test    # wrapping never exceeds the pane width
-make build   # cross-compile for linux/amd64
+make build   # cross-compile for linux/amd64 into dist/
 make deploy  # push into the running pods (see below)
 ```
+
+`make build` produces a **linux/amd64** binary for the container, which is why
+it goes to `dist/` and not the repo root — running it on an arm64 Mac gives
+`exec format error`. Use `make run` locally.
 
 `make deploy` copies the binary into the Docker-in-Docker sidecar of each
 `progapanda-org` pod and rebuilds the local `progapandist/hello` image tag on

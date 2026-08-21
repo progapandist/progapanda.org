@@ -1,10 +1,16 @@
+KUBECONFIG ?= $(HOME)/kubeconfig
+export KUBECONFIG
+
 BINARY  := hello2
+# Cross-compiled for the container, so it lives in dist/ and not in the repo
+# root — it is a linux/amd64 ELF and will not run on your Mac. Use `make run`.
+DIST    := dist/$(BINARY)
 IMAGE   := progapandist/hello
 # Pristine upstream image, by digest. Deploy layers on this rather than on
 # whatever the tag currently points at, so repeated deploys never stack.
 BASE    := progapandist/hello@sha256:930112104e1442e2ea8adb6503c11822b2a37e12724227f1cf91cface830525b
 PLATFORM:= linux/amd64
-PODS    := $(shell kubectl get pods -l app.kubernetes.io/name=progapanda-org -o name)
+PODS     = $(shell kubectl get pods -l app.kubernetes.io/name=progapanda-org -o name)
 
 .PHONY: run build test clean deploy
 
@@ -15,10 +21,11 @@ test:
 	go test ./...
 
 build: test ## Cross-compile for the container (linux/amd64)
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o $(BINARY) .
+	@mkdir -p dist
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o $(DIST) .
 
 clean:
-	rm -f $(BINARY)
+	rm -rf dist
 
 # Inject the binary into the Docker-in-Docker sidecar of every web pod and
 # rebuild the image tag the daemon serves to visitors. No registry involved:
@@ -28,7 +35,7 @@ clean:
 deploy: build
 	@for pod in $(PODS); do \
 		echo "==> $$pod"; \
-		kubectl cp $(BINARY) $${pod#pod/}:/tmp/$(BINARY) -c dind-daemon; \
+		kubectl cp $(DIST) $${pod#pod/}:/tmp/$(BINARY) -c dind-daemon; \
 		kubectl exec $${pod#pod/} -c dind-daemon -- sh -c '\
 			docker pull -q $(BASE) && \
 			cd /tmp && printf "FROM $(BASE)\nCOPY $(BINARY) /app/$(BINARY)\n" > Dockerfile.$(BINARY) && \
