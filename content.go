@@ -1,0 +1,168 @@
+package main
+
+// Content of the TUI. Markup understood by render():
+//   "# "  heading      "- "  bullet      "@ "  link line "@ Label|https://url"
+//   anything else is a paragraph. Blank lines separate blocks.
+
+type section struct {
+	name string
+	body string
+}
+
+var sections = []section{
+	{"Hello", `# Hi, I'm Andy 👋
+
+Senior backend & DevOps engineer in Berlin. Eight-plus years of shipping
+production Rails, with the DevOps and cloud work that keeps it standing up.
+
+I came to this from international news broadcasting — I was a reporter, foreign
+correspondent, and European bureau chief for 13 years before I retrained as a
+developer at 30. I have never fully severed the writing habit, which is how I
+ended up running the technical blog at Evil Martians for five years.
+
+Since September 2025 I've been a senior backend engineer at Sofatutor, working
+on payment and subscription systems — the kind of code where being off by one
+cent is a real incident. Before that: Shopify (production engineering) and
+Getsafe (backend).
+
+@ Email|andrey@hey.com
+@ Github|https://github.com/progapandist
+@ Site|https://progapanda.org`},
+
+	{"Experience", `# Where I've worked 💼
+
+- Senior Backend Engineer, Sofatutor — Sep 2025 to present
+  Building and maintaining payment and subscription systems for a German
+  online learning platform. Billing logic, recurring charges, and the
+  unglamorous correctness work that money demands.
+
+- Career pause — Jun 2024 to Sep 2025
+  A deliberate break after several intense years at Shopify and Getsafe. Also
+  the reason for the lull on my Github.
+
+- Senior Backend Engineer, Getsafe — Dec 2023 to May 2024
+  German digital insurance scale-up. Led an internal R&D effort to modernize
+  the Policy Administration System, a complex legacy Rails codebase, and
+  delivered an actionable refactoring blueprint for mission-critical insurance
+  infrastructure.
+
+- Senior Production Engineer, Shopify — Sep 2021 to Oct 2023
+  Spearheaded a new internal Rails monolith replacing SlackOps with a secure
+  infra portal. Designed and maintained lifecycle tooling for the Kubernetes
+  clusters powering internal services. Focused on self-service platform design,
+  developer experience, and secure automation.
+
+- Full-Stack Developer / Rails Instructor, Le Wagon — 2019 to 2021
+  Co-developed the learning management platform for the leading in-person
+  programming bootcamp. Built and containerized grading tools for student code,
+  ran the cloud infrastructure, acted as SRE for multiple services, and taught
+  Ruby and Rails to career switchers across Europe.
+
+- Head of Content, Evil Martians — 2017 to 2022
+  Ran editorial strategy for Martian Chronicles. Wrote and edited technical
+  articles that landed on Hacker News, occasionally at #1.
+
+- Freelance Rails Developer — 2017 to 2018
+  Business-logic-heavy Rails applications for European startups.`},
+
+	{"Skills", `# What I work with 🛠
+
+- Daily drivers
+  Ruby, Rails, JavaScript, TypeScript, SQL, Redis
+
+- Infrastructure
+  Kubernetes, Docker, GCP, Digital Ocean, GitHub Actions, Buildkite
+
+- Also in the toolbox
+  Go (basics — this program included), Python, Java, Swift, C
+
+- The parts that aren't a language
+  CI/CD pipelines, containerized environments, systems thinking, documentation
+  that people actually read, and mentoring.`},
+
+	{"Open Source", `# Things I've put out there 📦
+
+- stripeek
+  A debugging tool for Stripe — for when you need to see what the API is
+  actually doing, not what the dashboard says it did.
+
+- rails-k8s-demo
+  A complete worked example for deploying Sidekiq-backed Rails apps to
+  DigitalOcean Kubernetes.
+
+- foot_traffic
+  Pure Ruby DSL for headless Chrome scripting via Ferrum. No Selenium.
+
+- wait-on-check-action
+  GitHub Action that halts a workflow until required checks pass on a ref.
+
+- progapanda.org
+  This website. An experimental terminal UI in Go, piped over WebSockets.
+
+@ Github|https://github.com/progapandist`},
+
+	{"Background", `# The long way round 🌍
+
+- Education
+  Computer Science (unfinished BSc), Vrije Universiteit Amsterdam, 2017-2019.
+  Full Stack Web Development Bootcamp, Le Wagon Paris, 2016.
+  Master's in International Journalism, Lomonosov Moscow State University,
+  2004-2009.
+
+- Before software
+  Started at 16 as a tech writer at Yandex in 2001. Then 13 years in broadcast
+  journalism — editor, reporter, foreign correspondent, European bureau chief.
+  I left the profession in 2014, after the annexation of Crimea, and retrained
+  into software development.
+
+- Where
+  Brussels, Paris, Amsterdam, Berlin — moving around since 2010.
+
+- Languages
+  English (fluent), French (fluent), Russian (native), German (basic
+  conversational).
+
+- Paperwork
+  Permanent German resident, unrestricted work rights.`},
+
+	{"How", `# How it's built 👷
+
+- A Svelte front-end uses Xterm.js to emulate a terminal in your browser.
+
+- A Go server upgrades the connection to a WebSocket.
+
+- An Alpine container starts on the backend, one per visitor, with no network
+  and a hard cap on CPU and memory.
+
+- A Go binary inside that container renders this TUI. The original was written
+  in 2020 with tview; this rewrite uses Bubble Tea, Lip Gloss, and Bubbles.
+
+- Stdin and stdout of the container are piped back and forth over the
+  WebSocket.
+
+The whole thing is open source:
+
+@ Source|https://github.com/progapandist/progapanda.org
+@ This TUI|https://github.com/progapandist/hello2`},
+
+	{"Why", `# But... why? 🤔
+
+Because I'm obsessed with terminals and TUI programming, mostly.
+
+Slightly more seriously: this started as research into highly scalable
+interactive learning environments for programming students — the question of
+how you hand a thousand people a real shell without handing them your server.
+
+It runs on a single DigitalOcean droplet turned into a Kubernetes cluster with
+k3s. It has been up for years, which says something about either k3s or my
+willingness to leave things alone.`},
+
+	{"Quit", `# Thanks for stopping by 👋
+
+Press Enter (or q) to close this session.
+
+If you want to talk about work, or terminals, or why anyone would leave
+television for Rails:
+
+@ Email|andrey@hey.com`},
+}
