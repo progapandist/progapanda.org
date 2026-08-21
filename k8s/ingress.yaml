@@ -1,12 +1,12 @@
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: progapanda-ingress
   annotations:
     kubernetes.io/ingress.class: "traefik"
-    certmanager.k8s.io/issuer: "letsencrypt-prod-issuer"
-    certmanager.k8s.io/acme-challenge-type: http01
-
+    # No cert-manager annotations here on purpose: the Certificate is declared
+    # explicitly in cert.yaml. (The old certmanager.k8s.io/* annotations were
+    # pre-0.11 naming and had been silently ignored for years.)
 spec:
   tls:
     - hosts:
@@ -17,6 +17,9 @@ spec:
       http:
         paths:
           - path: /
+            pathType: Prefix
             backend:
-              serviceName: progapanda-org-service
-              servicePort: 80
+              service:
+                name: progapanda-org-service
+                port:
+                  number: 80
