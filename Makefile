@@ -1,5 +1,8 @@
 BINARY  := hello2
 IMAGE   := progapandist/hello
+# Pristine upstream image, by digest. Deploy layers on this rather than on
+# whatever the tag currently points at, so repeated deploys never stack.
+BASE    := progapandist/hello@sha256:930112104e1442e2ea8adb6503c11822b2a37e12724227f1cf91cface830525b
 PLATFORM:= linux/amd64
 PODS    := $(shell kubectl get pods -l app.kubernetes.io/name=progapanda-org -o name)
 
@@ -27,7 +30,9 @@ deploy: build
 		echo "==> $$pod"; \
 		kubectl cp $(BINARY) $${pod#pod/}:/tmp/$(BINARY) -c dind-daemon; \
 		kubectl exec $${pod#pod/} -c dind-daemon -- sh -c '\
-			cd /tmp && printf "FROM $(IMAGE)\nCOPY $(BINARY) /app/$(BINARY)\n" > Dockerfile.$(BINARY) && \
+			docker pull -q $(BASE) && \
+			cd /tmp && printf "FROM $(BASE)\nCOPY $(BINARY) /app/$(BINARY)\n" > Dockerfile.$(BINARY) && \
+			chmod +x $(BINARY) && \
 			docker build -q -f Dockerfile.$(BINARY) -t $(IMAGE) . '; \
 	done
 	@echo "Deployed. New sessions can run ./$(BINARY)"

@@ -45,9 +45,19 @@ make deploy  # push into the running pods (see below)
 ```
 
 `make deploy` copies the binary into the Docker-in-Docker sidecar of each
-`progapanda-org` pod and rebuilds the local `progapandist/hello` image tag from
-the cached base. No registry, no credentials. It needs a working `kubectl`
-context pointed at the k3s cluster.
+`progapanda-org` pod and rebuilds the local `progapandist/hello` image tag on
+top of the pristine upstream image, pinned by digest as `BASE` in the Makefile.
+No registry credentials needed. It needs a working `kubectl` context pointed at
+the k3s cluster.
+
+Building from the digest rather than from the `progapandist/hello` tag matters:
+the tag is what this deploy overwrites, so building `FROM` it would stack a new
+layer on the previous deploy every time.
+
+The welcome banner still says "Type ./hello to continue". `entrypoint.sh` in
+this repo is the original with that line updated to mention both binaries — add
+`COPY entrypoint.sh /app/entrypoint.sh` to the deploy recipe when you want it
+live.
 
 Because DinD stores images in an `emptyDir`, a pod restart wipes it. For
 something durable, build and push `progapandist/hello` to Docker Hub instead.
