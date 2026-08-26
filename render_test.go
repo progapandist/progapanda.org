@@ -62,14 +62,24 @@ func TestSpreadFitsAndAligns(t *testing.T) {
 }
 
 func TestViewFitsTerminalWidth(t *testing.T) {
-	for _, width := range []int{52, 80, 120} {
-		updated, _ := (model{}).Update(tea.WindowSizeMsg{Width: width, Height: 30})
+	var current tea.Model = model{}
+	for _, size := range []tea.WindowSizeMsg{
+		{Width: 120, Height: 40},
+		{Width: 52, Height: 18},
+		{Width: 80, Height: 30},
+		{Width: 120, Height: 40},
+	} {
+		updated, cmd := current.Update(size)
+		if cmd == nil {
+			t.Errorf("resize to %dx%d did not request a full repaint", size.Width, size.Height)
+		}
 		view := updated.(model).View()
 		for i, line := range strings.Split(view, "\n") {
-			if got := lipgloss.Width(line); got > width {
-				t.Errorf("width %d, line %d: rendered %d columns", width, i+1, got)
+			if got := lipgloss.Width(line); got > size.Width {
+				t.Errorf("width %d, line %d: rendered %d columns", size.Width, i+1, got)
 			}
 		}
+		current = updated
 	}
 }
 
