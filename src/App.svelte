@@ -4,20 +4,16 @@
   import { onMount } from "svelte";
   import { FitAddon } from "xterm-addon-fit";
   import { WebLinksAddon } from "xterm-addon-web-links";
-  import decodeUTF8 from "./decoder";
   import "xterm/css/xterm.css";
 
   let terminalDiv;
 
   onMount(() => {
     let term = null;
+    let fit = null;
     // TODO: Introduce dev/prod switching based on ENV
     var websocket = new WebSocket("wss://progapanda.org/term");
-    websocket.binaryType = "arraybuffer"; // ????
-
-    function binaryString(buf) {
-      return decodeUTF8(String.fromCharCode.apply(null, new Uint8Array(buf)));
-    }
+    websocket.binaryType = "arraybuffer";
 
     websocket.onopen = function(evt) {
       term = new Terminal({
@@ -47,8 +43,9 @@
         });
 
         websocket.onmessage = function(evt) {
-          term.write(binaryString(evt.data));
-          fitAddon.fit();
+          // Xterm.js decodes Uint8Array input as a stream, preserving UTF-8
+          // characters split across WebSocket messages.
+          term.write(new Uint8Array(evt.data));
         };
 
         websocket.onclose = function(evt) {
@@ -73,9 +70,21 @@
         term.open(terminalDiv);
         term.focus();
 
-        window.addEventListener("resize", () => {
+        fit = () => {
           fitAddon.fit();
-        });
+        };
+        requestAnimationFrame(fit);
+        window.addEventListener("resize", fit);
+      }
+    };
+
+    return () => {
+      if (fit) {
+        window.removeEventListener("resize", fit);
+      }
+      websocket.close();
+      if (term) {
+        term.dispose();
       }
     };
   });

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -172,19 +171,24 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// Constantly read from process and copy to websocket
+	buf := make([]byte, 32*1024)
 	for {
-		ttywriter, _ := conn.NextWriter(websocket.BinaryMessage)
-		buf := make([]byte, 1024)
 		read, err := tty.Read(buf)
-		// Client dropped connection (closed tab)
+		if read > 0 {
+			// PTY output is an arbitrary byte stream. Forward it unchanged:
+			// Xterm.js owns the stateful UTF-8 decoder and correctly handles a
+			// multibyte character split across WebSocket messages.
+			if writeErr := conn.WriteMessage(websocket.BinaryMessage, buf[:read]); writeErr != nil {
+				l.WithError(writeErr).Error("Unable to write PTY output to websocket")
+				stopContainer(containerName)
+				return
+			}
+		}
 		if err != nil {
-			conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
 			l.WithError(err).Error("Unable to read from pty/cmd")
 			stopContainer(containerName)
 			return
 		}
-		ttywriter.Write(bytes.ToValidUTF8(buf[:read], []byte{}))
-		ttywriter.Close()
 	}
 }
 
