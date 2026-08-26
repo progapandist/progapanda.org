@@ -2,13 +2,15 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
-import "./font.css";
+import "./main.css";
 
 const terminalElement = document.querySelector("#xterm");
 const terminal = new Terminal({
   cursorBlink: true,
-  fontFamily: "VT323-Regular",
-  fontSize: 24,
+  fontFamily:
+    'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+  fontSize: 17,
+  lineHeight: 1.1,
 });
 const fitAddon = new FitAddon();
 
