@@ -91,10 +91,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.vp.Width, m.vp.Height = m.paneWidth(), vpH
 		}
 		m.setContent()
-		// Browser terminals can retain cells from the previous geometry
-		// when both dimensions change at once. Force a complete repaint so
-		// borders and the viewport scrollbar cannot survive a resize.
-		return m, tea.ClearScreen
+		return m, nil
 
 	case tea.KeyMsg:
 		switch msg.String() {

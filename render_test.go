@@ -69,10 +69,7 @@ func TestViewFitsTerminalWidth(t *testing.T) {
 		{Width: 80, Height: 30},
 		{Width: 120, Height: 40},
 	} {
-		updated, cmd := current.Update(size)
-		if cmd == nil {
-			t.Errorf("resize to %dx%d did not request a full repaint", size.Width, size.Height)
-		}
+		updated, _ := current.Update(size)
 		view := updated.(model).View()
 		for i, line := range strings.Split(view, "\n") {
 			if got := lipgloss.Width(line); got > size.Width {
