@@ -10,7 +10,7 @@ type section struct {
 }
 
 var sections = []section{
-	{"Hello", `# Hi, I'm Andy 👋
+	{"Hello", `# Hi, I'm Andy
 
 Senior backend & DevOps engineer in Berlin. Eight-plus years of shipping
 production Rails, with the DevOps and cloud work that keeps it standing up.
@@ -29,7 +29,7 @@ Getsafe (backend).
 @ Github|https://github.com/progapandist
 @ Site|https://progapanda.org`},
 
-	{"Experience", `# Where I've worked 💼
+	{"Experience", `# Where I've worked
 
 - Senior Backend Engineer, Sofatutor — Sep 2025 to present
   Building and maintaining payment and subscription systems for a German
@@ -65,7 +65,7 @@ Getsafe (backend).
 - Freelance Rails Developer — 2017 to 2018
   Business-logic-heavy Rails applications for European startups.`},
 
-	{"Skills", `# What I work with 🛠
+	{"Skills", `# What I work with
 
 - Daily drivers
   Ruby, Rails, JavaScript, TypeScript, SQL, Redis
@@ -80,7 +80,7 @@ Getsafe (backend).
   CI/CD pipelines, containerized environments, systems thinking, documentation
   that people actually read, and mentoring.`},
 
-	{"Open Source", `# Things I've put out there 📦
+	{"Open Source", `# Things I've put out there
 
 - stripeek
   A debugging tool for Stripe — for when you need to see what the API is
@@ -101,7 +101,7 @@ Getsafe (backend).
 
 @ Github|https://github.com/progapandist`},
 
-	{"Background", `# The long way round 🌍
+	{"Background", `# The long way round
 
 - Education
   Computer Science (unfinished BSc), Vrije Universiteit Amsterdam, 2017-2019.
@@ -125,7 +125,7 @@ Getsafe (backend).
 - Paperwork
   Permanent German resident, unrestricted work rights.`},
 
-	{"How", `# How it's built 👷
+	{"How", `# How it's built
 
 - A Svelte front-end uses Xterm.js to emulate a terminal in your browser.
 
@@ -145,7 +145,7 @@ The whole thing is open source:
 @ Source|https://github.com/progapandist/progapanda.org
 @ This TUI|https://github.com/progapandist/hello2`},
 
-	{"Why", `# But... why? 🤔
+	{"Why", `# But... why?
 
 Because I'm obsessed with terminals and TUI programming, mostly.
 
@@ -157,7 +157,7 @@ It runs on a single DigitalOcean droplet turned into a Kubernetes cluster with
 k3s. It has been up for years, which says something about either k3s or my
 willingness to leave things alone.`},
 
-	{"Quit", `# Thanks for stopping by 👋
+	{"Quit", `# Thanks for stopping by
 
 Press Enter (or q) to close this session.
 

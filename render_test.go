@@ -80,6 +80,16 @@ func TestViewFitsTerminalWidth(t *testing.T) {
 	}
 }
 
+func TestContentUsesSingleCellCharacters(t *testing.T) {
+	for _, section := range sections {
+		for _, r := range section.body {
+			if width := lipgloss.Width(string(r)); width > 1 {
+				t.Errorf("%s contains %q, which occupies %d terminal cells", section.name, r, width)
+			}
+		}
+	}
+}
+
 func stripANSI(s string) string {
 	for {
 		i := strings.Index(s, "\x1b[")
