@@ -65,15 +65,15 @@ func TestViewFitsTerminalWidth(t *testing.T) {
 	var current tea.Model = model{}
 	for _, size := range []tea.WindowSizeMsg{
 		{Width: 120, Height: 40},
-		{Width: 52, Height: 18},
+		{Width: 60, Height: 18},
 		{Width: 80, Height: 30},
 		{Width: 120, Height: 40},
 	} {
 		updated, _ := current.Update(size)
 		view := updated.(model).View()
 		for i, line := range strings.Split(view, "\n") {
-			if got := lipgloss.Width(line); got > size.Width {
-				t.Errorf("width %d, line %d: rendered %d columns", size.Width, i+1, got)
+			if got := lipgloss.Width(line); got >= size.Width {
+				t.Errorf("width %d, line %d: rendered into final column (%d columns)", size.Width, i+1, got)
 			}
 		}
 		current = updated

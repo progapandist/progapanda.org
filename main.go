@@ -78,7 +78,10 @@ func (m *model) setContent() {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.w, m.h = msg.Width, msg.Height
+		// Leave Xterm's final column unused. Writing into that cell puts
+		// browser terminals into a wrap-pending state, which can stagger
+		// the right border as the renderer advances to the next line.
+		m.w, m.h = max(1, msg.Width-1), msg.Height
 		// Header (2) + frame (2) + footer (1) + pane title/rule (2).
 		vpH := m.h - headerH - box.GetVerticalFrameSize() - 3
 		if vpH < 3 {
