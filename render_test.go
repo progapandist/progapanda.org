@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -42,6 +43,33 @@ func TestBulletHangs(t *testing.T) {
 func TestUnwrap(t *testing.T) {
 	if got := unwrap("one\ntwo   three\n"); got != "one two three" {
 		t.Errorf("got %q", got)
+	}
+}
+
+func TestSpreadFitsAndAligns(t *testing.T) {
+	got := spread(labelStyle.Render("left"), linkStyle.Render("right"), 20)
+	if width := lipgloss.Width(got); width != 20 {
+		t.Fatalf("expected 20 columns, got %d", width)
+	}
+	if !strings.HasSuffix(stripANSI(got), "right") {
+		t.Errorf("right detail is not right-aligned: %q", got)
+	}
+
+	narrow := spread("a long left label", "right", 10)
+	if narrow != "a long left label" {
+		t.Errorf("expected narrow layout to omit right detail, got %q", narrow)
+	}
+}
+
+func TestViewFitsTerminalWidth(t *testing.T) {
+	for _, width := range []int{52, 80, 120} {
+		updated, _ := (model{}).Update(tea.WindowSizeMsg{Width: width, Height: 30})
+		view := updated.(model).View()
+		for i, line := range strings.Split(view, "\n") {
+			if got := lipgloss.Width(line); got > width {
+				t.Errorf("width %d, line %d: rendered %d columns", width, i+1, got)
+			}
+		}
 	}
 }
 
