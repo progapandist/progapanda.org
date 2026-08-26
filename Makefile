@@ -11,8 +11,8 @@ build:
 		-v "$(CURDIR):/app" \
 		-v /app/node_modules \
 		-w /app \
-		node:16-bullseye \
-		sh -c 'yarn install --frozen-lockfile && yarn run parcel build src/index.html'
+		node:24-bookworm \
+		sh -c 'yarn install --frozen-lockfile && yarn build'
 	GOOS=linux GOARCH=amd64 go build .
 	docker build --platform $(PLATFORM) -t progapandist/progapanda-org .
 

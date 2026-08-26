@@ -4,3 +4,18 @@
   font-weight: 400;
   src: url("VT323-Regular.ttf") format("truetype");
 }
+
+html,
+body,
+main,
+#xterm {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body,
+main {
+  background: black;
+  overflow: hidden;
+}

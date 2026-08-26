@@ -8,9 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"syscall"
 	"time"
-	"unsafe"
 
 	"github.com/creack/pty"
 	"github.com/gorilla/mux"
@@ -21,8 +19,6 @@ import (
 type windowSize struct {
 	Rows uint16 `json:"rows"`
 	Cols uint16 `json:"cols"`
-	X    uint16
-	Y    uint16
 }
 
 var upgrader = websocket.Upgrader{
@@ -87,11 +83,11 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	l := log.WithField("remoteaddr", r.RemoteAddr)
 
 	conn, err := upgrader.Upgrade(w, r, nil)
-	log.Printf("New connection: %v", conn.RemoteAddr())
 	if err != nil {
 		l.WithError(err).Error("Unable to upgrade connection")
 		return
 	}
+	log.Printf("New connection: %v", conn.RemoteAddr())
 
 	containerName := containerNameBasedOnPort(conn.RemoteAddr())
 	cmd := runContainer(containerName)
@@ -99,7 +95,8 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	tty, err := pty.Start(cmd)
 	if err != nil {
 		l.WithError(err).Error("Unable to start pty/cmd")
-		conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
+		conn.WriteMessage(websocket.BinaryMessage, []byte("\r\nUnable to start session: "+err.Error()))
+		conn.Close()
 		return
 	}
 
@@ -155,14 +152,12 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 					continue
 				}
 				log.WithField("resizeMessage", resizeMessage).Info("Resizing terminal")
-				_, _, errno := syscall.Syscall(
-					syscall.SYS_IOCTL,
-					tty.Fd(),
-					syscall.TIOCSWINSZ,
-					uintptr(unsafe.Pointer(&resizeMessage)),
-				)
-				if errno != 0 {
-					l.WithError(syscall.Errno(errno)).Error("Unable to resize terminal")
+				err = pty.Setsize(tty, &pty.Winsize{
+					Rows: resizeMessage.Rows,
+					Cols: resizeMessage.Cols,
+				})
+				if err != nil {
+					l.WithError(err).Error("Unable to resize terminal")
 				}
 			default:
 				l.WithField("dataType", dataTypeBuf[0]).Error("Unknown data type")
@@ -170,24 +165,30 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	// Constantly read from process and copy to websocket
+	// Constantly read from process and copy to websocket.
+	if err := copyOutput(conn, tty); err != nil {
+		l.WithError(err).Error("Terminal output stream ended")
+		stopContainer(containerName)
+	}
+}
+
+type messageWriter interface {
+	WriteMessage(messageType int, data []byte) error
+}
+
+// copyOutput preserves the PTY byte stream exactly. In particular, it must not
+// decode each read independently because UTF-8 characters can span reads.
+func copyOutput(dst messageWriter, src io.Reader) error {
 	buf := make([]byte, 32*1024)
 	for {
-		read, err := tty.Read(buf)
-		if read > 0 {
-			// PTY output is an arbitrary byte stream. Forward it unchanged:
-			// Xterm.js owns the stateful UTF-8 decoder and correctly handles a
-			// multibyte character split across WebSocket messages.
-			if writeErr := conn.WriteMessage(websocket.BinaryMessage, buf[:read]); writeErr != nil {
-				l.WithError(writeErr).Error("Unable to write PTY output to websocket")
-				stopContainer(containerName)
-				return
+		n, readErr := src.Read(buf)
+		if n > 0 {
+			if err := dst.WriteMessage(websocket.BinaryMessage, buf[:n]); err != nil {
+				return err
 			}
 		}
-		if err != nil {
-			l.WithError(err).Error("Unable to read from pty/cmd")
-			stopContainer(containerName)
-			return
+		if readErr != nil {
+			return readErr
 		}
 	}
 }
