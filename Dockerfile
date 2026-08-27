@@ -11,6 +11,7 @@ FROM alpine
 WORKDIR /app
 COPY --from=build /hello2 ./hello2
 COPY entrypoint.sh ./entrypoint.sh
+COPY canihackit.hack ./canihackit.hack
 ENV TERM=xterm-256color
 ENTRYPOINT ["./entrypoint.sh"]
 CMD ["./hello2"]

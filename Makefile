@@ -40,9 +40,10 @@ deploy: build
 		echo "==> $$pod"; \
 		kubectl cp $(DIST) $$pod:/tmp/$(BINARY) -c dind-daemon || exit 1; \
 		kubectl cp entrypoint.sh $$pod:/tmp/entrypoint.sh -c dind-daemon || exit 1; \
+		kubectl cp canihackit.hack $$pod:/tmp/canihackit.hack -c dind-daemon || exit 1; \
 		kubectl exec $$pod -c dind-daemon -- sh -c '\
 			docker pull -q $(BASE) && \
-			cd /tmp && printf "FROM $(BASE)\nCOPY $(BINARY) /app/$(BINARY)\nCOPY entrypoint.sh /app/entrypoint.sh\n" > Dockerfile.$(BINARY) && \
+			cd /tmp && printf "FROM $(BASE)\nCOPY $(BINARY) /app/$(BINARY)\nCOPY entrypoint.sh /app/entrypoint.sh\nCOPY canihackit.hack /app/canihackit.hack\n" > Dockerfile.$(BINARY) && \
 			chmod +x $(BINARY) entrypoint.sh && \
 			docker build -q -f Dockerfile.$(BINARY) -t $(IMAGE) . ' || exit 1; \
 	done; \
