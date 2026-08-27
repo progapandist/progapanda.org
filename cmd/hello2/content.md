@@ -1,19 +1,29 @@
 # Hello
 
-## Hi, I'm ANDY
+And this website is a working demo of "backend-for-frontend" (pun intended) architecture.
+You are looking at a binary that renders text-based user interface 
+to an actual Linux shell running in a container and piping bytes to your browser via WebSockets.
+Yes, that's mouthful, in other words:
 
-Senior backend & DevOps engineer in Berlin. Eight-plus years of shipping
-production Rails, with the DevOps and cloud work that keeps it standing up.
+## Hi, I'm Andy
+
+I live and write code in Berlin (... or is it generating code now?). 
+I also sort of paint, but that's another story. 
+I have about 10 years of production experience with web and cloud projects of 
+different shapes and sizes: from learning platforms to insurance systems to
+giants of e-commerce. Ruby and Rails are my bread and butter but I also dabble
+in Go, JavaScript or anything else I want to have fun with. It goes without saying
+that I also write a lot of YAML. 
 
 I came to this from international news broadcasting — I was a reporter, foreign
-correspondent, and European bureau chief for 13 years before I retrained as a
-developer at 30. I have never fully severed the writing habit, which is how I
-ended up running the technical blog at Evil Martians for five years.
+correspondent, and European bureau chief for 13 years before I retrained myself as a developer. 
+I have never fully severed the writing habit, which is how I ended up running the technical blog at Evil Martians for five years.
 
-Since September 2025 I've been a senior backend engineer at Sofatutor, working
-on payment and subscription systems — the kind of code where being off by one
-cent is a real incident. Before that: Shopify (production engineering) and
-Getsafe (backend).
+Currently I'ma a senior backend engineer at Sofatutor, working
+on payment and subscription systems — the kind of code where being off by couple of cents or seconds
+cent is at least very disappointed customer and a blow to the revenue at most.
+
+Right before: Shopify (production engineering) andv Getsafe (backend).
 
 [Email](mailto:andrey@hey.com)
 [Github](https://github.com/progapandist)
@@ -144,21 +154,6 @@ Getsafe (backend).
 The whole thing is open source:
 
 [Source](https://github.com/progapandist/progapanda.org)
-[This TUI](https://github.com/progapandist/hello2)
-
-# Why
-
-## But... why?
-
-Because I'm obsessed with terminals and TUI programming, mostly.
-
-Slightly more seriously: this started as research into highly scalable
-interactive learning environments for programming students — the question of
-how you hand a thousand people a real shell without handing them your server.
-
-It runs on a single DigitalOcean droplet turned into a Kubernetes cluster with
-k3s. It has been up for years, which says something about either k3s or my
-willingness to leave things alone.
 
 # Quit
 
@@ -166,7 +161,7 @@ willingness to leave things alone.
 
 Press Enter (or q) to close this session.
 
-If you want to talk about work, or terminals, or why anyone would leave
-television for Rails:
+If you want to talk about anything work-related, don't hesitate 
+to contact me by email.
 
 [Email](mailto:andrey@hey.com)
