@@ -9,7 +9,9 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/signal"
 	"sync"
+	"syscall"
 
 	"github.com/creack/pty"
 	"github.com/gorilla/mux"
@@ -108,6 +110,55 @@ func dockerRunArgs(name string, size *pty.Winsize, pointer string) []string {
 	}
 }
 
+// live tracks the containers this process started. --rm only removes a
+// container when it exits, and these never do on their own: cleanup is the
+// deferred stop below, which a killed process never reaches. Without this,
+// Ctrl-C on `make dev` orphans every open session's container indefinitely.
+var live = struct {
+	sync.Mutex
+	names map[string]struct{}
+}{names: map[string]struct{}{}}
+
+func trackContainer(name string) {
+	live.Lock()
+	defer live.Unlock()
+	live.names[name] = struct{}{}
+}
+
+func forgetContainer(name string) {
+	live.Lock()
+	defer live.Unlock()
+	delete(live.names, name)
+}
+
+// takeContainers returns every tracked name and empties the set, so a shutdown
+// and a session ending at the same moment cannot both stop the same container.
+func takeContainers() []string {
+	live.Lock()
+	defer live.Unlock()
+	names := make([]string, 0, len(live.names))
+	for name := range live.names {
+		names = append(names, name)
+	}
+	live.names = map[string]struct{}{}
+	return names
+}
+
+// stopVisitorContainers stops everything still running, in parallel: each stop
+// waits a second for the shell to go away, and doing that in series would make
+// shutdown take as long as there are sessions.
+func stopVisitorContainers() {
+	var wg sync.WaitGroup
+	for _, name := range takeContainers() {
+		wg.Add(1)
+		go func(name string) {
+			defer wg.Done()
+			stopContainer(name)
+		}(name)
+	}
+	wg.Wait()
+}
+
 func stopContainer(name string) {
 	_ = exec.Command(
 		"docker",
@@ -167,6 +218,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	containerName := containerNameBasedOnPort(conn.RemoteAddr())
+	trackContainer(containerName)
 	cmd := runContainer(containerName, initialSize, coarsePointer(r))
 
 	tty, err := pty.StartWithSize(cmd, initialSize)
@@ -179,6 +231,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	var stopOnce sync.Once
 	stop := func() {
 		stopOnce.Do(func() {
+			forgetContainer(containerName)
 			stopContainer(containerName)
 		})
 	}
@@ -292,8 +345,18 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/term", handleWebsocket)
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("dist")))
+	server := &http.Server{Addr: ":4567", Handler: r}
 
-	if err := http.ListenAndServe(":4567", r); err != nil {
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		sig := <-signals
+		log.WithField("signal", sig).Info("Stopping visitor containers before exit")
+		stopVisitorContainers()
+		server.Close()
+	}()
+
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.WithError(err).Fatal("Something went wrong with the webserver")
 	}
 }

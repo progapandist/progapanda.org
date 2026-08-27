@@ -86,6 +86,22 @@ func TestVisitorImageIsOverridable(t *testing.T) {
 	}
 }
 
+// A shutdown and a session ending together must not both try to stop the same
+// container, and nothing may be left behind for the shutdown to miss.
+func TestTakeContainersDrainsTheSetOnce(t *testing.T) {
+	trackContainer("client-1")
+	trackContainer("client-2")
+	forgetContainer("client-1")
+
+	got := takeContainers()
+	if len(got) != 1 || got[0] != "client-2" {
+		t.Fatalf("got %v, want [client-2]", got)
+	}
+	if again := takeContainers(); len(again) != 0 {
+		t.Errorf("second take returned %v, want nothing", again)
+	}
+}
+
 func TestDecodeWindowSize(t *testing.T) {
 	size, err := decodeWindowSize(strings.NewReader(`{"rows":42,"cols":120}`))
 	if err != nil {
