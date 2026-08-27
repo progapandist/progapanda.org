@@ -72,10 +72,9 @@ raw capture leaks the account id in every id it contains.
 strings, so every cross-reference survives — and refuses to write a fixture that
 still contains it.
 
-`visitor/stripeek` is a wrapper, not the binary. It warns and asks for
-confirmation on a coarse pointer or under 80 columns, because the inspector is
-wide and keyboard-driven. It is advisory: this is a real shell, and
-`stripeek.bin` is right there.
+`visitor/stripeek` is a wrapper, not the binary. On a coarse pointer or under
+80 columns it prints a note and exits, because the inspector is wide and
+keyboard-driven. `stripeek.bin` is still there for anyone who insists.
 
 ## Stack
 

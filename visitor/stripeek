@@ -3,22 +3,18 @@
 # server passes POINTER in from the browser, which is the only place that knows
 # whether there is a mouse; the width we can just measure.
 #
-# Advisory, not a block: this is a real shell, and pretending otherwise would be
-# a lie the visitor can disprove in one command.
 cols=$(stty size 2>/dev/null | cut -d' ' -f2)
 case "$cols" in
 	''|*[!0-9]*) cols=${COLUMNS:-80} ;;
 esac
 
 if [ "$POINTER" = "coarse" ] || [ "$cols" -lt 80 ]; then
-	printf '\033[38;5;212mstripeek wants a desktop.\033[0m\n'
+	printf '\033[38;5;212mstripeek needs a desktop.\033[0m\n'
 	echo ""
 	echo "It is a wide, keyboard-driven"
-	echo "inspector. On a phone you will"
-	echo "see about a third of it."
-	echo ""
-	printf '\033[38;5;81mEnter\033[0m to try anyway, \033[38;5;81mCtrl-C\033[0m to stop.\n'
-	read -r _ || exit 0
+	echo "inspector. Open progapanda.org"
+	echo "on a computer to try it."
+	exit 0
 fi
 
 # stripeek appends to its history and can clear it, and /app is root-owned
