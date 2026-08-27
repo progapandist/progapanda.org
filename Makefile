@@ -53,6 +53,9 @@ deploy: build
 # ponytail: emptyDir storage, so this is lost on pod restart. Push the image to
 # Docker Hub instead if it needs to survive.
 deploy-tui: payload
+	@# PATH is set here and not only in Dockerfile.visitor: the cluster image is
+	@# built from the pinned base plus this payload, so ENV lines in that
+	@# Dockerfile's final stage apply to `make dev` only.
 	@pods=$$(kubectl get pods -l $(SELECTOR) \
 		-o jsonpath='{range .items[*]}{.metadata.name} {.status.conditions[?(@.type=="Ready")].status} {.metadata.deletionTimestamp}{"\n"}{end}' \
 		| awk 'NF == 2 && $$2 == "True" { print $$1 }') || exit 1; \
@@ -63,7 +66,7 @@ deploy-tui: payload
 		kubectl cp build/payload $$pod:/tmp/payload -c dind-daemon || exit 1; \
 		kubectl exec $$pod -c dind-daemon -- sh -c '\
 			docker pull -q $(VISITOR_BASE) && \
-			printf "FROM $(VISITOR_BASE)\nCOPY . /app/\n" > /tmp/Dockerfile.payload && \
+			printf "FROM $(VISITOR_BASE)\nENV PATH=/app:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\nCOPY . /app/\n" > /tmp/Dockerfile.payload && \
 			docker build -q -f /tmp/Dockerfile.payload -t $(VISITOR_IMAGE) /tmp/payload ' || exit 1; \
 	done; \
 	echo "Deployed. New sessions start with ./hello2 pre-filled."
