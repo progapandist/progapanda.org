@@ -50,7 +50,7 @@ spec:
               command:
                 - sh
                 - -c
-                - docker image inspect progapandist/hello >/dev/null 2>&1 || docker pull -q progapandist/hello
+                - docker image inspect progapandist/hello2 >/dev/null 2>&1 || docker pull -q progapandist/hello2
             initialDelaySeconds: 5
             periodSeconds: 30
             timeoutSeconds: 25

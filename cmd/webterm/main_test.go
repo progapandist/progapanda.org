@@ -48,7 +48,7 @@ func TestDockerRunCommandKeepsVisitorContainerIsolated(t *testing.T) {
 		"--network", "none",
 		"--rm",
 		"--name", "client-1234",
-		"progapandist/hello",
+		"progapandist/hello2",
 		"sh",
 	}
 	size := &pty.Winsize{Rows: 42, Cols: 120}
@@ -73,6 +73,16 @@ func TestCoarsePointerComesFromTheQueryString(t *testing.T) {
 		if got := coarsePointer(r); got != want {
 			t.Errorf("%s: got %q, want %q", query, got, want)
 		}
+	}
+}
+
+func TestVisitorImageIsOverridable(t *testing.T) {
+	if got := visitorImage(); got != "progapandist/hello2" {
+		t.Errorf("default: got %q", got)
+	}
+	t.Setenv("VISITOR_IMAGE", "progapandist/hello2:dev")
+	if got := visitorImage(); got != "progapandist/hello2:dev" {
+		t.Errorf("override: got %q", got)
 	}
 }
 

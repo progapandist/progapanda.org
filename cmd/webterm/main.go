@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
 	"sync"
 
@@ -69,6 +70,16 @@ func coarsePointer(r *http.Request) string {
 	return "fine"
 }
 
+// visitorImage is what each visitor gets. Overridable so `make dev` can run a
+// natively-built image without clobbering the tag that ships to the cluster —
+// a dev build is this machine's architecture, and the cluster is amd64.
+func visitorImage() string {
+	if image := os.Getenv("VISITOR_IMAGE"); image != "" {
+		return image
+	}
+	return "progapandist/hello2"
+}
+
 func dockerRunArgs(name string, size *pty.Winsize, pointer string) []string {
 	return []string{
 		"run",
@@ -92,7 +103,7 @@ func dockerRunArgs(name string, size *pty.Winsize, pointer string) []string {
 		"--rm",
 		"--name",
 		name,
-		"progapandist/hello",
+		visitorImage(),
 		"sh",
 	}
 }
