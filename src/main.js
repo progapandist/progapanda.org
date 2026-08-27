@@ -5,12 +5,29 @@ import "@xterm/xterm/css/xterm.css";
 import "./main.css";
 
 const terminalElement = document.querySelector("#xterm");
+
+function openTrustedLink(_event, uri) {
+  try {
+    const url = new URL(uri);
+    if (url.protocol !== "https:" || url.hostname !== "github.com") {
+      return;
+    }
+
+    window.open(url.href, "_blank", "noopener,noreferrer");
+  } catch {
+    // Ignore malformed terminal-provided links.
+  }
+}
+
 const terminal = new Terminal({
   cursorBlink: true,
   fontFamily:
     'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
   fontSize: 17,
   lineHeight: 1,
+  linkHandler: {
+    activate: openTrustedLink,
+  },
   theme: {
     background: "#0b0b0f",
     foreground: "#eeeeee",
