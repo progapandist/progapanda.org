@@ -175,7 +175,7 @@ function connect() {
     ).slice(-256);
     if (!commandPrefilled && outputTail.includes("/app $ ")) {
       commandPrefilled = true;
-      send(0, "./hello2");
+      send(0, "hello2");
       // "Press Enter to continue" is not an option without a keyboard, so run
       // it after a beat long enough to read the banner.
       if (touchOnly) {
