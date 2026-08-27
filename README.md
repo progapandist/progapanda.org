@@ -110,7 +110,7 @@ Deploys need `KUBECONFIG` pointed at the k3s cluster (defaults to
 
 ## Keys
 
-`↑`/`↓` navigate · `enter` read (scroll the pane) · `esc` back to menu · `q` quit
+`↑`/`↓` navigate · `enter` read (scroll the pane) · `tab` switch panes · `esc` back to menu · `q` quit
 
 ## Why?
 

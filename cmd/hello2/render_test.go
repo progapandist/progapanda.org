@@ -183,6 +183,32 @@ func TestWheelScrollsContentWithoutFocus(t *testing.T) {
 	}
 }
 
+// Tab moves focus both ways, and never ends the session — even on Quit, where
+// enter does.
+func TestTabTogglesFocus(t *testing.T) {
+	sized, _ := model{}.Update(tea.WindowSizeMsg{Width: 90, Height: 30})
+	m := sized.(model)
+	tab := tea.KeyMsg{Type: tea.KeyTab}
+
+	for i, want := range []bool{true, false, true} {
+		updated, _ := m.Update(tab)
+		m = updated.(model)
+		if m.reading != want {
+			t.Fatalf("press %d: reading = %v, want %v", i+1, m.reading, want)
+		}
+	}
+
+	m.cursor = len(sections) - 1 // Quit
+	m.reading = false
+	updated, cmd := m.Update(tab)
+	if cmd != nil {
+		t.Error("tab on the Quit entry must not quit")
+	}
+	if !updated.(model).reading {
+		t.Error("tab on the Quit entry should still open it")
+	}
+}
+
 func TestContentUsesSingleCellCharacters(t *testing.T) {
 	for _, section := range sections {
 		for _, r := range section.body {

@@ -150,6 +150,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "esc":
 			m.reading = false
 			return m, nil
+		case "tab":
+			// Toggles rather than opens, so the same key gets you both ways.
+			// Unlike enter it never quits, even on the Quit entry — a focus
+			// key that sometimes ends the session would be a nasty surprise.
+			m.reading = !m.reading
+			return m, nil
 		case "enter":
 			if sections[m.cursor].name == "Quit" {
 				return m, tea.Quit
@@ -280,10 +286,10 @@ func (m model) footer() string {
 		return keyStyle.Render(key) + footerStyle.Render(" "+what)
 	}
 	mode := modeStyle.Render(" BROWSE ")
-	keys := []string{k("↑/↓", "navigate"), k("enter", "open"), k("q", "quit")}
+	keys := []string{k("↑/↓", "navigate"), k("enter/tab", "open"), k("q", "quit")}
 	if m.reading {
 		mode = modeStyle.Render(" READING ")
-		keys = []string{k("↑/↓", "scroll"), k("esc", "index"), k("q", "quit")}
+		keys = []string{k("↑/↓", "scroll"), k("esc/tab", "index"), k("q", "quit")}
 	}
 	hints := strings.Join(keys, footerStyle.Render("   "))
 	return spread(mode, hints, m.w)
