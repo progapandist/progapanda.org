@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os/exec"
+	"sync"
 
 	"github.com/creack/pty"
 	"github.com/gorilla/mux"
@@ -75,12 +76,13 @@ func dockerRunArgs(name string) []string {
 }
 
 func stopContainer(name string) {
-	out, _ := exec.Command(
+	_ = exec.Command(
 		"docker",
 		"stop",
+		"--time",
+		"1",
 		name,
-	).Output()
-	log.Printf("Stopped container %s", out)
+	).Run()
 }
 
 func readInitialWindowSize(conn *websocket.Conn) (*pty.Winsize, error) {
@@ -141,7 +143,23 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var stopOnce sync.Once
+	stop := func() {
+		stopOnce.Do(func() {
+			stopContainer(containerName)
+		})
+	}
+	clientDone := make(chan struct{})
+	var clientDoneOnce sync.Once
+	markClientDone := func() {
+		clientDoneOnce.Do(func() {
+			close(clientDone)
+		})
+	}
+
 	defer func() {
+		markClientDone()
+		stop()
 		cmd.Process.Kill()
 		cmd.Process.Wait()
 		tty.Close()
@@ -153,21 +171,30 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		for {
 			messageType, reader, err := conn.NextReader()
 			if err != nil {
-				l.WithError(err).Error("Unable to grab next reader")
-				stopContainer(containerName)
+				markClientDone()
+				if !websocket.IsCloseError(
+					err,
+					websocket.CloseNormalClosure,
+					websocket.CloseGoingAway,
+					websocket.CloseNoStatusReceived,
+					websocket.CloseAbnormalClosure,
+				) {
+					l.WithError(err).Warn("Terminal input closed unexpectedly")
+				}
+				stop()
 				return
 			}
 
 			if messageType == websocket.TextMessage {
 				l.Warn("Unexpected text message")
-				conn.WriteMessage(websocket.TextMessage, []byte("Unexpected text message"))
 				continue
 			}
 
 			var dataType [1]byte
 			if _, err := io.ReadFull(reader, dataType[:]); err != nil {
-				l.WithError(err).Error("Unable to read message type from reader")
-				conn.WriteMessage(websocket.TextMessage, []byte("Unable to read message type from reader"))
+				l.WithError(err).Warn("Unable to read terminal message type")
+				markClientDone()
+				stop()
 				return
 			}
 
@@ -176,12 +203,15 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 			case 0:
 				copied, err := io.Copy(tty, reader)
 				if err != nil {
-					l.WithError(err).Errorf("Error after copying %d bytes", copied)
+					l.WithError(err).Warnf("Terminal input closed after %d bytes", copied)
+					markClientDone()
+					stop()
+					return
 				}
 			case 1:
 				resizeMessage, err := decodeWindowSize(reader)
 				if err != nil {
-					conn.WriteMessage(websocket.TextMessage, []byte("Error decoding resize message: "+err.Error()))
+					l.WithError(err).Warn("Unable to decode terminal resize message")
 					continue
 				}
 				log.WithField("resizeMessage", resizeMessage).Info("Resizing terminal")
@@ -196,14 +226,23 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 
 	// Constantly read from process and copy to websocket
 	for {
-		ttywriter, _ := conn.NextWriter(websocket.BinaryMessage)
 		buf := make([]byte, 1024)
 		read, err := tty.Read(buf)
-		// Client dropped connection (closed tab)
 		if err != nil {
-			conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
-			l.WithError(err).Error("Unable to read from pty/cmd")
-			stopContainer(containerName)
+			if err != io.EOF {
+				select {
+				case <-clientDone:
+				default:
+					l.WithError(err).Warn("Terminal process ended unexpectedly")
+				}
+			}
+			stop()
+			return
+		}
+		ttywriter, err := conn.NextWriter(websocket.BinaryMessage)
+		if err != nil {
+			markClientDone()
+			stop()
 			return
 		}
 		ttywriter.Write(bytes.ToValidUTF8(buf[:read], []byte{}))

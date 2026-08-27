@@ -37,12 +37,11 @@
     term.loadAddon(fitAddon);
     term.loadAddon(linksAddon);
     term.open(terminalDiv);
-    fitAddon.fit();
     term.focus();
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const websocket = new WebSocket(`${protocol}//${window.location.host}/term`);
-    websocket.binaryType = "arraybuffer";
+    let websocket = null;
+    let disposed = false;
     let receivedOutput = false;
     let commandPrefilled = false;
     let outputTail = "";
@@ -64,66 +63,102 @@
       return decodeUTF8(String.fromCharCode.apply(null, new Uint8Array(buf)));
     }
 
-    websocket.onopen = function(evt) {
+    function sendSize() {
+      fitAddon.fit();
+      if (websocket && websocket.readyState === WebSocket.OPEN) {
+        websocket.send(
+          new TextEncoder().encode(
+            "\x01" + JSON.stringify({ cols: term.cols, rows: term.rows })
+          )
+        );
+      }
+    }
+
+    function connect() {
+      if (disposed) {
+        return;
+      }
+
+      sendSize();
+      websocket = new WebSocket(`${protocol}//${window.location.host}/term`);
+      websocket.binaryType = "arraybuffer";
+
+      websocket.onopen = function(evt) {
+        sendSize();
+      };
+
       term.onData(function(data) {
-        websocket.send(new TextEncoder().encode("\x00" + data));
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+          websocket.send(new TextEncoder().encode("\x00" + data));
+        }
       });
 
       term.onResize(function(evt) {
-        websocket.send(
-          new TextEncoder().encode(
-            "\x01" + JSON.stringify({ cols: evt.cols, rows: evt.rows })
-          )
-        );
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+          websocket.send(
+            new TextEncoder().encode(
+              "\x01" + JSON.stringify({ cols: evt.cols, rows: evt.rows })
+            )
+          );
+        }
       });
 
-      websocket.send(
-        new TextEncoder().encode(
-          "\x01" + JSON.stringify({ cols: term.cols, rows: term.rows })
-        )
-      );
-    };
+      websocket.onmessage = function(evt) {
+        const output = binaryString(evt.data);
+        if (!receivedOutput) {
+          receivedOutput = true;
+          window.clearInterval(spinner);
+          term.write("\x1b[2J\x1b[H");
+        }
+        term.write(output);
 
-    websocket.onmessage = function(evt) {
-      const output = binaryString(evt.data);
-      if (!receivedOutput) {
-        receivedOutput = true;
+        // Put actual bytes into the guest shell, rather than merely painting
+        // text in Xterm. The command remains editable and Enter launches it.
+        outputTail = (outputTail + output).slice(-256);
+        if (!commandPrefilled && outputTail.includes("/app $ ")) {
+          commandPrefilled = true;
+          websocket.send(new TextEncoder().encode("\x00./hello2"));
+        }
+      };
+
+      websocket.onclose = function(evt) {
         window.clearInterval(spinner);
-        term.write("\x1b[2J\x1b[H");
-      }
-      term.write(output);
+        if (!disposed) {
+          term.write("\r\n\x1b[38;5;245mSession terminated\x1b[0m");
+        }
+      };
 
-      // Put actual bytes into the guest shell, rather than merely painting
-      // text in Xterm. The command remains editable and Enter launches it.
-      outputTail = (outputTail + output).slice(-256);
-      if (!commandPrefilled && outputTail.includes("/app $ ")) {
-        commandPrefilled = true;
-        websocket.send(new TextEncoder().encode("\x00./hello2"));
-      }
-    };
-
-    websocket.onclose = function(evt) {
-      window.clearInterval(spinner);
-      term.write("\r\n\x1b[38;5;245mSession terminated\x1b[0m");
-    };
-
-    websocket.onerror = function(evt) {
-      if (typeof console.log == "function") {
-        console.log(evt);
-      }
-    };
+      websocket.onerror = function(evt) {
+        if (typeof console.log == "function") {
+          console.log(evt);
+        }
+      };
+    }
 
     term.onTitleChange(function(title) {
       document.title = title;
     });
 
-    const resize = () => fitAddon.fit();
+    const resize = () => sendSize();
     window.addEventListener("resize", resize);
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(terminalDiv);
+
+    const fontsReady = document.fonts ? document.fonts.ready : Promise.resolve();
+    fontsReady.then(() => {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(connect);
+      });
+    });
 
     return () => {
+      disposed = true;
       window.clearInterval(spinner);
       window.removeEventListener("resize", resize);
-      websocket.close();
+      resizeObserver.disconnect();
+      if (websocket) {
+        websocket.close();
+      }
       term.dispose();
     };
   });
