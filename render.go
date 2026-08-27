@@ -37,11 +37,25 @@ func render(body string, width int) string {
 // bulletBlock renders "▸ headline" with any following text hanging under it.
 func bulletBlock(block string, width int) string {
 	head, rest, _ := strings.Cut(block, "\n")
-	s := wrapStyled(head, width, bulletStyle, "▸ ", "  ")
+	label, url, linked := strings.Cut(head, "|")
+	s := ""
+	if linked {
+		s = bulletStyle.Render("▸ ") + terminalLink(label, url)
+	} else {
+		s = wrapStyled(head, width, bulletStyle, "▸ ", "  ")
+	}
 	if strings.TrimSpace(rest) != "" {
 		s += "\n" + wrapStyled(rest, width, bodyStyle, "  ", "  ")
 	}
 	return s
+}
+
+// terminalLink uses OSC 8 so Xterm makes the styled label itself clickable
+// without displaying a long URL beside every project name.
+func terminalLink(label, url string) string {
+	return "\x1b]8;;" + url + "\x1b\\" +
+		linkStyle.Render(label) +
+		"\x1b]8;;\x1b\\"
 }
 
 // linkBlock keeps label and URL on one line when they fit, and drops the URL

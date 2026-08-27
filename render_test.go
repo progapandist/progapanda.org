@@ -39,6 +39,16 @@ func TestBulletHangs(t *testing.T) {
 	}
 }
 
+func TestLinkedBulletMakesHeadlineClickable(t *testing.T) {
+	got := render("- stripeek|https://github.com/progapandist/stripeek\n  Description.", 52)
+	if !strings.Contains(got, "\x1b]8;;https://github.com/progapandist/stripeek\x1b\\") {
+		t.Fatalf("linked bullet is missing its OSC 8 target: %q", got)
+	}
+	if !strings.Contains(got, "stripeek") {
+		t.Fatalf("linked bullet is missing its label: %q", got)
+	}
+}
+
 // Source line breaks must not survive into the output.
 func TestUnwrap(t *testing.T) {
 	if got := unwrap("one\ntwo   three\n"); got != "one two three" {

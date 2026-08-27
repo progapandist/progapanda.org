@@ -1,7 +1,8 @@
 package main
 
 // Content of the TUI. Markup understood by render():
-//   "# "  heading      "- "  bullet      "@ "  link line "@ Label|https://url"
+//   "# "  heading      "- "  bullet (optional "label|URL" headline)
+//   "@ "  link line "@ Label|https://url"
 //   anything else is a paragraph. Blank lines separate blocks.
 
 type section struct {
@@ -82,21 +83,21 @@ Getsafe (backend).
 
 	{"Open Source", `# Things I've put out there
 
-- stripeek
+- stripeek|https://github.com/progapandist/stripeek
   A debugging tool for Stripe — for when you need to see what the API is
   actually doing, not what the dashboard says it did.
 
-- rails-k8s-demo
+- rails-k8s-demo|https://github.com/lewagon/rails-k8s-demo
   A complete worked example for deploying Sidekiq-backed Rails apps to
   DigitalOcean Kubernetes.
 
-- foot_traffic
+- foot_traffic|https://github.com/lewagon/foot_traffic
   Pure Ruby DSL for headless Chrome scripting via Ferrum. No Selenium.
 
-- wait-on-check-action
+- wait-on-check-action|https://github.com/lewagon/wait-on-check-action
   GitHub Action that halts a workflow until required checks pass on a ref.
 
-- progapanda.org
+- progapanda.org|https://github.com/progapandist/progapanda.org
   This website. An experimental terminal UI in Go, piped over WebSockets.
 
 @ Github|https://github.com/progapandist`},
