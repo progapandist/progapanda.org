@@ -46,5 +46,34 @@
     <main>
       <div id="xterm"></div>
     </main>
+    <!--
+      The page is a terminal, so it has no text of its own. Crawlers fall back
+      to the URL when a page has nothing to read, which makes for a poor search
+      result no matter what the meta description says. This is also the only
+      thing a screen reader can make sense of.
+    -->
+    <noscript>
+      <h1>Andy Baranov — Backend &amp; DevOps Engineer</h1>
+      <p>
+        Senior backend and DevOps engineer in Berlin. Eight-plus years of
+        shipping production Rails, with the DevOps and cloud work that keeps it
+        standing up. Previously Sofatutor, Shopify, Getsafe, Le Wagon and Evil
+        Martians; before software, thirteen years as a reporter and foreign
+        correspondent.
+      </p>
+      <p>
+        This site is a portfolio you can type into. Every visitor gets a
+        private, network-less Linux container running a Go terminal UI, piped to
+        the browser over a WebSocket — so it needs JavaScript to show you
+        anything.
+      </p>
+      <ul>
+        <li><a href="mailto:andrey@hey.com">andrey@hey.com</a></li>
+        <li><a href="https://github.com/progapandist">github.com/progapandist</a></li>
+        <li>
+          <a href="https://github.com/progapandist/progapanda.org">Source for this site</a>
+        </li>
+      </ul>
+    </noscript>
   </body>
 </html>
