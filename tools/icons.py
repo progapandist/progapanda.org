@@ -99,7 +99,7 @@ def svg():
 def wordmark():
     """The banner art, read straight from the welcome screen it also draws."""
     art, inside = [], False
-    with open("cmd/hello2/entrypoint.sh", encoding="utf-8") as f:
+    with open("visitor/entrypoint.sh", encoding="utf-8") as f:
         for line in f:
             if line.startswith("cat << 'EOF'"):
                 inside = True

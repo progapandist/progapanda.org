@@ -27,9 +27,11 @@ be a resize — the server needs it to size the PTY.
 | `cmd/webterm` | the web server: WebSocket, PTY, one container per visitor |
 | `cmd/hello2` | the TUI that runs inside that container |
 | `cmd/hello2/content.md` | **all the prose — edit this to change the copy** |
+| `visitor` | everything else that ships in the visitor container |
 | `src` | Xterm.js frontend, built with Vite |
 | `k8s` | Deployment, Service, Ingress, cert |
 | `tools/icons.py` | regenerates the favicon and link-preview image |
+| `tools/stripeek_fixture.py` | regenerates the scrubbed stripeek capture |
 
 `cmd/hello2/content.md` is embedded into the TUI binary at build time. Every
 `# ` heading starts a new section and becomes its menu entry, in file order.
@@ -55,6 +57,25 @@ The original TUI (`./hello`, 2020) was built with
 [tview](https://github.com/rivo/tview) and its source was lost. Both binaries
 live in the visitor image so they can be compared: the site pre-fills
 `./hello2`, replace it with `./hello` at the prompt.
+
+## stripeek in the sandbox
+
+The container also carries [stripeek](https://github.com/progapandist/stripeek),
+a Stripe API/webhook inspector, pinned by version in `Dockerfile.visitor`. There
+is no network and no Stripe key, so it runs against a captured session loaded
+from `STRIPEEK_HISTORY_PATH` — 65 calls and 35 webhooks, including subscription
+schedules and the whole invoice lifecycle.
+
+Stripe object ids embed a fragment derived from the account that made them, so a
+raw capture leaks the account id in every id it contains.
+`tools/stripeek_fixture.py` rewrites that fragment consistently — ids are opaque
+strings, so every cross-reference survives — and refuses to write a fixture that
+still contains it.
+
+`visitor/stripeek` is a wrapper, not the binary. It warns and asks for
+confirmation on a coarse pointer or under 80 columns, because the inspector is
+wide and keyboard-driven. It is advisory: this is a real shell, and
+`stripeek.bin` is right there.
 
 ## Stack
 

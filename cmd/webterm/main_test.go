@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"strings"
 	"testing"
@@ -38,6 +40,7 @@ func TestDockerRunCommandKeepsVisitorContainerIsolated(t *testing.T) {
 		"run", "-it",
 		"-e", "COLUMNS=120",
 		"-e", "LINES=42",
+		"-e", "POINTER=coarse",
 		"--cpus=.1",
 		"--user=1000:1000",
 		"--memory=64M",
@@ -49,13 +52,27 @@ func TestDockerRunCommandKeepsVisitorContainerIsolated(t *testing.T) {
 		"sh",
 	}
 	size := &pty.Winsize{Rows: 42, Cols: 120}
-	if got := dockerRunArgs("client-1234", size); !reflect.DeepEqual(got, want) {
+	if got := dockerRunArgs("client-1234", size, "coarse"); !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected Docker arguments\n got: %#v\nwant: %#v", got, want)
 	}
 
-	cmd := dockerRunCommand("client-1234", size)
+	cmd := dockerRunCommand("client-1234", size, "coarse")
 	if cmd.Stderr != nil {
 		t.Fatal("command stderr must remain available for PTY attachment")
+	}
+}
+
+func TestCoarsePointerComesFromTheQueryString(t *testing.T) {
+	for query, want := range map[string]string{
+		"/term?pointer=coarse": "coarse",
+		"/term?pointer=fine":   "fine",
+		"/term":                "fine",
+		"/term?pointer=bogus":  "fine",
+	} {
+		r := httptest.NewRequest(http.MethodGet, query, nil)
+		if got := coarsePointer(r); got != want {
+			t.Errorf("%s: got %q, want %q", query, got, want)
+		}
 	}
 }
 

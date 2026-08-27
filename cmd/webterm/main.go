@@ -34,7 +34,7 @@ func containerNameBasedOnPort(ra net.Addr) string {
 	return "client-0"
 }
 
-func runContainer(name string, size *pty.Winsize) *exec.Cmd {
+func runContainer(name string, size *pty.Winsize, pointer string) *exec.Cmd {
 	// Respect DOCKER_HOST in production and the user's normal Docker context
 	// during local development.
 	if out, err := exec.Command("docker", "info").CombinedOutput(); err != nil {
@@ -47,11 +47,11 @@ func runContainer(name string, size *pty.Winsize) *exec.Cmd {
 		)
 	}
 
-	return dockerRunCommand(name, size)
+	return dockerRunCommand(name, size, pointer)
 }
 
-func dockerRunCommand(name string, size *pty.Winsize) *exec.Cmd {
-	args := dockerRunArgs(name, size)
+func dockerRunCommand(name string, size *pty.Winsize, pointer string) *exec.Cmd {
+	args := dockerRunArgs(name, size, pointer)
 	shellArgs := append(
 		[]string{"-c", `exec docker "$@" 2>/dev/null`, "docker"},
 		args...,
@@ -59,7 +59,17 @@ func dockerRunCommand(name string, size *pty.Winsize) *exec.Cmd {
 	return exec.Command("sh", shellArgs...)
 }
 
-func dockerRunArgs(name string, size *pty.Winsize) []string {
+// coarsePointer reports whether the browser says it has no mouse. Only the
+// page can know this — a terminal cannot tell a phone from a small window — so
+// it arrives as a query parameter on the WebSocket upgrade.
+func coarsePointer(r *http.Request) string {
+	if r.URL.Query().Get("pointer") == "coarse" {
+		return "coarse"
+	}
+	return "fine"
+}
+
+func dockerRunArgs(name string, size *pty.Winsize, pointer string) []string {
 	return []string{
 		"run",
 		"-it",
@@ -71,6 +81,8 @@ func dockerRunArgs(name string, size *pty.Winsize) []string {
 		fmt.Sprintf("COLUMNS=%d", size.Cols),
 		"-e",
 		fmt.Sprintf("LINES=%d", size.Rows),
+		"-e",
+		"POINTER=" + pointer,
 		"--cpus=.1",
 		"--user=1000:1000",
 		"--memory=64M",
@@ -144,7 +156,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	containerName := containerNameBasedOnPort(conn.RemoteAddr())
-	cmd := runContainer(containerName, initialSize)
+	cmd := runContainer(containerName, initialSize, coarsePointer(r))
 
 	tty, err := pty.StartWithSize(cmd, initialSize)
 	if err != nil {

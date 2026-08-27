@@ -80,7 +80,9 @@ Getsafe (backend).
 
 - [stripeek](https://github.com/progapandist/stripeek)
   A debugging tool for Stripe — for when you need to see what the API is
-  actually doing, not what the dashboard says it did.
+  actually doing, not what the dashboard says it did. It is installed in this
+  container: quit here and run `stripeek` to page through a captured run,
+  webhooks and all.
 
 - [rails-k8s-demo](https://github.com/lewagon/rails-k8s-demo)
   A complete worked example for deploying Sidekiq-backed Rails apps to

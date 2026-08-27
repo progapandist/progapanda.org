@@ -147,8 +147,12 @@ function connect() {
   }
 
   fitAddon.fit();
+  // The container cannot tell a phone from a narrow window, and one of the
+  // programs in there wants to know. Device capability, not anything personal.
   websocket = new WebSocket(
-    `${websocketProtocol}//${window.location.host}/term`,
+    `${websocketProtocol}//${window.location.host}/term${
+      touchOnly ? "?pointer=coarse" : ""
+    }`,
   );
   websocket.binaryType = "arraybuffer";
 

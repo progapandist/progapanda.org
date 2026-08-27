@@ -41,9 +41,9 @@ deploy: build
 	kubectl rollout status $(DEPLOYMENT) --timeout=300s
 	$(MAKE) deploy-tui
 
-# Inject the TUI into the Docker-in-Docker sidecar of every ready web pod, then
-# rebuild the image tag served to visitors. No registry involved: the base image
-# is already cached inside each DinD daemon.
+# Inject the visitor payload into the Docker-in-Docker sidecar of every ready
+# web pod, then rebuild the image tag served to visitors. No registry involved:
+# the base image is already cached inside each DinD daemon.
 #
 # Pods still terminating from a rollout are skipped — they stay listed for a
 # while after the rollout reports done, and copying into one fails. Ready alone
@@ -52,27 +52,31 @@ deploy: build
 #
 # ponytail: emptyDir storage, so this is lost on pod restart. Push the image to
 # Docker Hub instead if it needs to survive.
-# build/, not dist/: dist/ is the frontend bundle, is tracked, and is wiped by
-# `make frontend`. This binary is also linux/amd64 and will not run on a Mac.
-deploy-tui: test
-	@mkdir -p build
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o build/hello2 ./cmd/hello2
+deploy-tui: payload
 	@pods=$$(kubectl get pods -l $(SELECTOR) \
 		-o jsonpath='{range .items[*]}{.metadata.name} {.status.conditions[?(@.type=="Ready")].status} {.metadata.deletionTimestamp}{"\n"}{end}' \
 		| awk 'NF == 2 && $$2 == "True" { print $$1 }') || exit 1; \
 	test -n "$$pods" || { echo "no ready pods match $(SELECTOR) (KUBECONFIG=$$KUBECONFIG)" >&2; exit 1; }; \
 	for pod in $$pods; do \
 		echo "==> $$pod"; \
-		kubectl cp build/hello2 $$pod:/tmp/hello2 -c dind-daemon || exit 1; \
-		kubectl cp cmd/hello2/entrypoint.sh $$pod:/tmp/entrypoint.sh -c dind-daemon || exit 1; \
-		kubectl cp cmd/hello2/canihackit.hack $$pod:/tmp/canihackit.hack -c dind-daemon || exit 1; \
+		kubectl exec $$pod -c dind-daemon -- rm -rf /tmp/payload || exit 1; \
+		kubectl cp build/payload $$pod:/tmp/payload -c dind-daemon || exit 1; \
 		kubectl exec $$pod -c dind-daemon -- sh -c '\
 			docker pull -q $(VISITOR_BASE) && \
-			cd /tmp && printf "FROM $(VISITOR_BASE)\nCOPY hello2 /app/hello2\nCOPY entrypoint.sh /app/entrypoint.sh\nCOPY canihackit.hack /app/canihackit.hack\n" > Dockerfile.hello2 && \
-			chmod +x hello2 entrypoint.sh && \
-			docker build -q -f Dockerfile.hello2 -t $(VISITOR_IMAGE) . ' || exit 1; \
+			printf "FROM $(VISITOR_BASE)\nCOPY . /app/\n" > /tmp/Dockerfile.payload && \
+			docker build -q -f /tmp/Dockerfile.payload -t $(VISITOR_IMAGE) /tmp/payload ' || exit 1; \
 	done; \
 	echo "Deployed. New sessions start with ./hello2 pre-filled."
+
+# Everything that goes into the visitor container, staged in one directory so
+# the deploy is a single copy per pod. Built to build/ and not dist/: dist/ is
+# the frontend bundle, and these are linux/amd64 and will not run on a Mac.
+payload: test
+	@rm -rf build/payload && mkdir -p build/payload
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o build/payload/hello2 ./cmd/hello2
+	docker build -f Dockerfile.visitor --target stripeek-export --output type=local,dest=build/payload .
+	cp visitor/entrypoint.sh visitor/canihackit.hack visitor/stripeek visitor/stripeek-history.json build/payload/
+	chmod +x build/payload/hello2 build/payload/stripeek build/payload/stripeek.bin build/payload/entrypoint.sh
 
 clean:
 	rm -rf build webterm
