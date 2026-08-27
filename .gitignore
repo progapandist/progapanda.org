@@ -1,6 +1,4 @@
 node_modules
 .cache
 webterm
-
-main
-vendor/
+yarn-error.log

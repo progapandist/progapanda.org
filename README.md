@@ -2,24 +2,56 @@
 
 Source code for :link: https://progapanda.org
 
-![TUI](./doc/tui.png)
-![Shell](./doc/term.png)
+A terminal in your browser. Every visitor gets a private, network-less
+container running a Go TUI portfolio.
 
-## Stack:
+## How it works
 
-- Go
-- Gorilla Mux :gorilla:
-- WebSocket :electric_plug:
-- [tview](https://github.com/rivo/tview) for Go TUI :tv: [gist with TUI code](https://gist.github.com/progapandist/97f7ccc8169b792e2d0b4a6aab6faf9b)
-- Svelte.js :nail_care:
-- Xterm.js :computer:
-- Docker :ship:
-- k3s with [k3sup](https://github.com/alexellis/k3sup) :tomato:
-- Digital Ocean $10 droplet :ok_hand:
+1. The browser loads Xterm.js and opens a WebSocket to `/term`.
+2. The Go server starts a throwaway Docker container per visitor
+   (`--network none`, 0.1 CPU, 64M, `--rm`) behind a PTY.
+3. PTY bytes and keystrokes are piped over the socket, raw. Xterm owns UTF-8
+   decoding, because a multibyte character can straddle two messages.
+
+The TUI inside the container lives in a separate repo:
+[hello2](https://github.com/progapandist/hello2).
+
+Wire format is binary frames, first byte is the type: `0` raw terminal bytes,
+`1` a JSON `{"rows":n,"cols":n}` resize. The first message a client sends must
+be a resize — the server needs it to size the PTY.
+
+## Stack
+
+- Go, [gorilla/mux](https://github.com/gorilla/mux) + [gorilla/websocket](https://github.com/gorilla/websocket), [creack/pty](https://github.com/creack/pty)
+- [Xterm.js](https://xtermjs.org) :computer:, built with [Vite](https://vite.dev)
+- [Bubble Tea](https://github.com/charmbracelet/bubbletea) for the TUI :tv:
+- Docker :ship: — Docker-in-Docker sidecar per pod
+- k3s with [k3sup](https://github.com/alexellis/k3sup) :tomato: on a Digital Ocean droplet
+
+## Running it
+
+```sh
+make dev      # frontend + local visitor image, then serve on :4567
+make build    # frontend, linux binary, container image
+make deploy   # push, kubectl apply, roll the pods
+```
+
+`make dev` builds the visitor image from `../hello2`; point `HELLO2_DIR`
+elsewhere if it lives somewhere else.
+
+**Deploy order matters.** Rolling these pods recreates the Docker-in-Docker
+sidecars, and their image cache is an `emptyDir` — so `make deploy` here wipes
+the visitor image. Redeploy `hello2` afterwards, or visitors get whatever the
+`progapandist/hello` base image last had baked in.
+
+Deploys need `KUBECONFIG` pointed at the k3s cluster (defaults to
+`~/kubeconfig`).
 
 ## Why?
 
-This is part of my research for creating scalable online coding environments for programming students at [Le Wagon](https://www.lewagon.com)
+This started as research into scalable online coding environments for
+programming students at [Le Wagon](https://www.lewagon.com). It stuck around
+as a portfolio.
 
 ## Other OSS projects
 
@@ -29,7 +61,7 @@ This is part of my research for creating scalable online coding environments for
 
 ## Contact me
 
-andrey@lewagon.org
+andrey@hey.com
 
 ## License
 

@@ -19,10 +19,10 @@ visitor-image:
 	docker build -t $(VISITOR_IMAGE) $(HELLO2_DIR)
 
 dev: frontend visitor-image
-	go run -mod=mod .
+	go run .
 
 build: frontend
-	GOOS=linux GOARCH=amd64 go build -mod=mod .
+	GOOS=linux GOARCH=amd64 go build .
 	docker build --platform $(PLATFORM) -t progapandist/progapanda-org .
 
 # Recreating the pods wipes the image cache in each DinD sidecar, so ./hello2
