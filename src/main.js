@@ -6,6 +6,10 @@ import "./main.css";
 
 const terminalElement = document.querySelector("#xterm");
 
+// A coarse pointer means no keyboard to press Enter with, and fingers instead
+// of a wheel. Both of those need handling below.
+const touchOnly = window.matchMedia("(pointer: coarse)").matches;
+
 function openTrustedLink(_event, uri) {
   try {
     const url = new URL(uri);
@@ -51,6 +55,32 @@ terminal.loadAddon(new WebLinksAddon());
 terminal.open(terminalElement);
 terminal.focus();
 
+// Xterm reads keystrokes through a hidden textarea, so tapping the terminal
+// focuses it and iOS raises the keyboard over the UI. A full-screen app is
+// driven by taps and swipes and has nothing to type into, so suppress the
+// keyboard while the alternate buffer is active — and hand it back the moment
+// the app exits and the shell prompt returns.
+function syncKeyboard() {
+  const input = terminal.textarea;
+  if (!input) {
+    return;
+  }
+
+  const fullscreenApp = terminal.buffer.active.type === "alternate";
+  input.inputMode = fullscreenApp ? "none" : "text";
+
+  // iOS only offers the keyboard when a blurred element gains focus, and
+  // leaving the app does not move focus. Let go of it, so the next tap counts
+  // as a fresh focus. On desktop keep it, or typing would stop working after
+  // quitting the TUI.
+  if (touchOnly && !fullscreenApp) {
+    input.blur();
+  }
+}
+
+terminal.buffer.onBufferChange(syncKeyboard);
+syncKeyboard();
+
 const encoder = new TextEncoder();
 const promptDecoder = new TextDecoder();
 const websocketProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -59,10 +89,6 @@ let disposed = false;
 let receivedOutput = false;
 let commandPrefilled = false;
 let outputTail = "";
-
-// A coarse pointer means no keyboard to press Enter with, and fingers instead
-// of a wheel. Both of those need handling below.
-const touchOnly = window.matchMedia("(pointer: coarse)").matches;
 
 const spinnerFrames = ["◒", "◐", "◓", "◑"];
 let spinnerFrame = 0;
