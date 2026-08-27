@@ -6,21 +6,19 @@ You can try! Fork bombs and excessive memory allocations should not work though.
 
 EOF
 
-cat << EOF > welcome
- _____  _____   ____   _____          _____        _   _ _____            ____  _____   _____ 
-|  __ \|  __ \ / __ \ / ____|   /\   |  __ \ /\   | \ | |  __ \   /\     / __ \|  __ \ / ____|
-| |__) | |__) | |  | | |  __   /  \  | |__) /  \  |  \| | |  | | /  \   | |  | | |__) | |  __ 
-|  ___/|  _  /| |  | | | |_ | / /\ \ |  ___/ /\ \ | .   | |  | |/ /\ \  | |  | |  _  /| | |_ |
-| |    | | \ \| |__| | |__| |/ ____ \| |  / ____ \| |\  | |__| / ____ \ | |__| | | \ \| |__| |
-|_|    |_|  \_\\____/ \_____/_/    \_\_| /_/    \_\_| \_|_____/_/    \_(_)____/|_|  \_\\_____|
-
+printf '\033[1;38;5;212m'
+cat << 'EOF'
+████  ████   ███   ████  ███  ████   ███  █   █ ████   ███         ███  ████   ████
+█   █ █   █ █   █ █     █   █ █   █ █   █ ██  █ █   █ █   █       █   █ █   █ █
+████  ████  █   █ █  ██ █████ ████  █████ █ █ █ █   █ █████       █   █ ████  █  ██
+█     █  █  █   █ █   █ █   █ █     █   █ █  ██ █   █ █   █       █   █ █  █  █   █
+█     █   █  ███   ███  █   █ █     █   █ █   █ ████  █   █   ██   ███  █   █  ███
 EOF
-
-cat welcome
-
-echo "Welcome, stranger! Open this page in any desktop browser."
+printf '\033[0m\033[1;38;5;81mPORTFOLIO / TUI\033[0m  \033[38;5;245m● ONLINE\033[0m\n'
 echo ""
-echo "Type ./hello  for the original 2020 TUI (built with tview)."
-echo "Type ./hello2 for the 2025 rewrite    (built with Bubble Tea)."
+printf '\033[38;5;255mWelcome, stranger.\033[0m Your private, network-less container is ready.\n'
+printf '\033[38;5;81mPress Enter\033[0m to launch the pre-filled \033[1;38;5;212m./hello2\033[0m command.\n'
+printf '\033[38;5;245mWant the 2020 original instead? Replace it with ./hello.\033[0m\n'
+echo ""
 
 exec "$@"

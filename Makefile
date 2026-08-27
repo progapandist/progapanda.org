@@ -27,9 +27,9 @@ build: test ## Cross-compile for the container (linux/amd64)
 clean:
 	rm -rf dist
 
-# Inject the binary into the Docker-in-Docker sidecar of every web pod and
-# rebuild the image tag the daemon serves to visitors. No registry involved:
-# the base image is already cached inside each DinD daemon.
+# Inject the binary and welcome screen into the Docker-in-Docker sidecar of
+# every web pod, then rebuild the image tag served to visitors. No registry
+# involved: the base image is already cached inside each DinD daemon.
 # ponytail: emptyDir storage, so this is lost on pod restart. Push the image
 # to Docker Hub instead if it needs to survive.
 deploy: build
@@ -39,10 +39,11 @@ deploy: build
 		pod=$${pod#pod/}; \
 		echo "==> $$pod"; \
 		kubectl cp $(DIST) $$pod:/tmp/$(BINARY) -c dind-daemon || exit 1; \
+		kubectl cp entrypoint.sh $$pod:/tmp/entrypoint.sh -c dind-daemon || exit 1; \
 		kubectl exec $$pod -c dind-daemon -- sh -c '\
 			docker pull -q $(BASE) && \
-			cd /tmp && printf "FROM $(BASE)\nCOPY $(BINARY) /app/$(BINARY)\n" > Dockerfile.$(BINARY) && \
-			chmod +x $(BINARY) && \
+			cd /tmp && printf "FROM $(BASE)\nCOPY $(BINARY) /app/$(BINARY)\nCOPY entrypoint.sh /app/entrypoint.sh\n" > Dockerfile.$(BINARY) && \
+			chmod +x $(BINARY) entrypoint.sh && \
 			docker build -q -f Dockerfile.$(BINARY) -t $(IMAGE) . ' || exit 1; \
 	done; \
-	echo "Deployed. New sessions can run ./$(BINARY)"
+	echo "Deployed. New sessions start with ./$(BINARY) pre-filled."

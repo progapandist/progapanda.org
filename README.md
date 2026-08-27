@@ -6,7 +6,8 @@ The TUI behind [progapanda.org](https://progapanda.org), rewritten in
 The original (`./hello`, 2020) was built with [tview](https://github.com/rivo/tview)
 and its source was lost — this is a fresh implementation, with the content
 brought up to date from my current CV. Both binaries live in the same container
-so they can be compared side by side: type `./hello` or `./hello2`.
+so they can be compared side by side. The site pre-fills `./hello2`; replace it
+with `./hello` at the prompt to run the original.
 
 ## How it fits in
 
@@ -44,24 +45,23 @@ make build   # cross-compile for linux/amd64 into dist/
 make deploy  # push into the running pods (see below)
 ```
 
+For the complete local browser stack, keep this repository next to
+`progapanda.org` and run `make dev` from `progapanda.org`. That command builds
+this repository as the local visitor image before starting the web server.
+
 `make build` produces a **linux/amd64** binary for the container, which is why
 it goes to `dist/` and not the repo root — running it on an arm64 Mac gives
 `exec format error`. Use `make run` locally.
 
-`make deploy` copies the binary into the Docker-in-Docker sidecar of each
-`progapanda-org` pod and rebuilds the local `progapandist/hello` image tag on
-top of the pristine upstream image, pinned by digest as `BASE` in the Makefile.
-No registry credentials needed. It needs a working `kubectl` context pointed at
-the k3s cluster.
+`make deploy` copies the binary and `entrypoint.sh` welcome screen into the
+Docker-in-Docker sidecar of each `progapanda-org` pod and rebuilds the local
+`progapandist/hello` image tag on top of the pristine upstream image, pinned by
+digest as `BASE` in the Makefile. No registry credentials needed. It needs a
+working `kubectl` context pointed at the k3s cluster.
 
 Building from the digest rather than from the `progapandist/hello` tag matters:
 the tag is what this deploy overwrites, so building `FROM` it would stack a new
 layer on the previous deploy every time.
-
-The welcome banner still says "Type ./hello to continue". `entrypoint.sh` in
-this repo is the original with that line updated to mention both binaries — add
-`COPY entrypoint.sh /app/entrypoint.sh` to the deploy recipe when you want it
-live.
 
 Because DinD stores images in an `emptyDir`, a pod restart wipes it. For
 something durable, build and push `progapandist/hello` to Docker Hub instead.
