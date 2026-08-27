@@ -40,15 +40,21 @@ spec:
             - name: http
               containerPort: 4567
               protocol: TCP
-          # Keep a pod out of rotation until its dind sidecar answers on TLS
-          # :2376. Without this the failure is invisible: webterm serves fine
-          # and only apologizes once a visitor asks for a container.
+          # Keep a pod out of rotation until it can actually serve a visitor:
+          # the dind sidecar answering on TLS :2376 *and* holding the visitor
+          # image. The sidecar's cache is an emptyDir, so a fresh pod has to
+          # pull one — and until it has, `docker run` would silently fall back
+          # to whatever the registry's tag pointed at last.
           readinessProbe:
             exec:
-              command: ["docker", "info"]
+              command:
+                - sh
+                - -c
+                - docker image inspect progapandist/hello >/dev/null 2>&1 || docker pull -q progapandist/hello
             initialDelaySeconds: 5
-            periodSeconds: 10
-            timeoutSeconds: 5
+            periodSeconds: 30
+            timeoutSeconds: 25
+            failureThreshold: 10
           resources:
             requests:
               cpu: 20m

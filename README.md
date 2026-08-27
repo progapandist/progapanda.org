@@ -87,24 +87,23 @@ keyboard-driven. `stripeek.bin` is still there for anyone who insists.
 ## Running it
 
 ```sh
-make dev         # the whole site on :4567
-make run-tui     # just the TUI, in this terminal
+make dev       # the whole site on :4567
+make run-tui   # just the TUI, in this terminal
 make test
-make deploy      # everything: push, apply, roll the pods, reinstall the TUI
-make deploy-tui  # only the TUI — no restart, no downtime
+make deploy    # build and push both images, apply, roll the pods
 ```
 
-`make deploy` rolls the pods, which recreates the Docker-in-Docker sidecars.
-Their image cache is an `emptyDir`, so the visitor image is wiped every time —
-which is why `deploy` ends by running `deploy-tui` to put it back.
+There are two images: the web server, and the one every visitor gets. `deploy`
+builds and pushes both, then rolls the pods.
 
-Changed only the TUI or its copy? `make deploy-tui`. It copies a fresh binary
-into each running pod and rebuilds the visitor image tag in place: no registry,
-no restart, live for the next visitor.
+Rolling recreates the Docker-in-Docker sidecars, whose image cache is an
+`emptyDir`, so each one pulls the visitor image back for itself. The readiness
+probe is what makes that safe — a pod stays out of rotation until it holds the
+image, because otherwise it would take traffic first and `docker run` would
+quietly serve whatever the registry tag pointed at previously.
 
-`make deploy-tui` cross-compiles to `build/`, not `dist/`. `dist/` is the
-frontend bundle; the TUI binary is linux/amd64 and will not run on your Mac —
-use `make run-tui`.
+Anything that ships inside the container — the TUI, its copy, the welcome
+screen — therefore needs a full `make deploy`, not a shortcut.
 
 Deploys need `KUBECONFIG` pointed at the k3s cluster (defaults to
 `~/kubeconfig`).
