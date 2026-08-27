@@ -13,12 +13,47 @@ container running a Go TUI portfolio.
 3. PTY bytes and keystrokes are piped over the socket, raw. Xterm owns UTF-8
    decoding, because a multibyte character can straddle two messages.
 
-The TUI inside the container lives in a separate repo:
-[hello2](https://github.com/progapandist/hello2).
+The TUI inside the container is `cmd/hello2` in this repo. It began life as a
+separate repository and its history came along with it.
 
 Wire format is binary frames, first byte is the type: `0` raw terminal bytes,
 `1` a JSON `{"rows":n,"cols":n}` resize. The first message a client sends must
 be a resize — the server needs it to size the PTY.
+
+## Layout
+
+| path | what |
+|---|---|
+| `cmd/webterm` | the web server: WebSocket, PTY, one container per visitor |
+| `cmd/hello2` | the TUI that runs inside that container |
+| `cmd/hello2/content.md` | **all the prose — edit this to change the copy** |
+| `src` | Xterm.js frontend, built with Vite |
+| `k8s` | Deployment, Service, Ingress, cert |
+
+`cmd/hello2/content.md` is embedded into the TUI binary at build time. Every
+`# ` heading starts a new section and becomes its menu entry, in file order.
+Within a section, blank lines separate blocks and the opening characters pick
+the style:
+
+```markdown
+## heading
+
+- bullet headline, or a [label](https://url) to make it clickable
+  continuation text, hangs under the bullet
+
+[Label](https://url)
+[Another](https://url)
+
+anything else is a paragraph
+```
+
+Source line breaks are ignored — text is re-wrapped to the terminal's real
+width, so `content.md` stays readable (and renders on GitHub).
+
+The original TUI (`./hello`, 2020) was built with
+[tview](https://github.com/rivo/tview) and its source was lost. Both binaries
+live in the visitor image so they can be compared: the site pre-fills
+`./hello2`, replace it with `./hello` at the prompt.
 
 ## Stack
 
@@ -31,26 +66,31 @@ be a resize — the server needs it to size the PTY.
 ## Running it
 
 ```sh
-make dev      # frontend + local visitor image, then serve on :4567
-make build    # frontend, linux binary, container image
-make deploy   # push, apply, roll the pods, reinstall the TUI
+make dev         # the whole site on :4567
+make run-tui     # just the TUI, in this terminal
+make test
+make deploy      # everything: push, apply, roll the pods, reinstall the TUI
+make deploy-tui  # only the TUI — no restart, no downtime
 ```
 
-`make dev` builds the visitor image from `../hello2`; point `HELLO2_DIR`
-elsewhere if it lives somewhere else.
+`make deploy` rolls the pods, which recreates the Docker-in-Docker sidecars.
+Their image cache is an `emptyDir`, so the visitor image is wiped every time —
+which is why `deploy` ends by running `deploy-tui` to put it back.
 
-`make deploy` finishes the job: rolling these pods recreates the
-Docker-in-Docker sidecars, whose image cache is an `emptyDir`, so the visitor
-image is wiped every time. It therefore ends by running `make deploy` in the
-hello2 repo to put the TUI back. That is also why `HELLO2_DIR` is checked
-before anything is pushed — failing after the roll would leave visitors on the
-stale upstream image.
+Changed only the TUI or its copy? `make deploy-tui`. It copies a fresh binary
+into each running pod and rebuilds the visitor image tag in place: no registry,
+no restart, live for the next visitor.
 
-Changed only the TUI or its copy? Deploy from the hello2 repo directly; nothing
-here needs to restart.
+`make deploy-tui` cross-compiles to `build/`, not `dist/`. `dist/` is the
+frontend bundle; the TUI binary is linux/amd64 and will not run on your Mac —
+use `make run-tui`.
 
 Deploys need `KUBECONFIG` pointed at the k3s cluster (defaults to
 `~/kubeconfig`).
+
+## Keys
+
+`↑`/`↓` navigate · `enter` read (scroll the pane) · `esc` back to menu · `q` quit
 
 ## Why?
 

@@ -1,0 +1,20 @@
+# The per-visitor container: a TUI and a shell, nothing else. Built from the
+# repo root so it can reach cmd/hello2.
+#
+# Standalone, if you want to run the TUI on its own:
+#   docker build -f Dockerfile.visitor -t hello2 . && docker run --rm -it hello2
+FROM golang:1.26.3-alpine AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY cmd/hello2 ./cmd/hello2
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /hello2 ./cmd/hello2
+
+FROM alpine
+WORKDIR /app
+COPY --from=build /hello2 ./hello2
+COPY cmd/hello2/entrypoint.sh ./entrypoint.sh
+COPY cmd/hello2/canihackit.hack ./canihackit.hack
+ENV TERM=xterm-256color
+ENTRYPOINT ["./entrypoint.sh"]
+CMD ["./hello2"]

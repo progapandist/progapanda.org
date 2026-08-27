@@ -1,41 +1,78 @@
 KUBECONFIG ?= $(HOME)/kubeconfig
 export KUBECONFIG
 
-HELLO2_DIR ?= ../hello2
 IMAGE := progapandist/progapanda-org
 VISITOR_IMAGE := progapandist/hello
+# Pristine upstream visitor image, by digest. deploy-tui layers on this rather
+# than on whatever the tag currently points at, so repeated deploys never stack.
+VISITOR_BASE := progapandist/hello@sha256:930112104e1442e2ea8adb6503c11822b2a37e12724227f1cf91cface830525b
 PLATFORM := linux/amd64
 DEPLOYMENT := deployment/progapanda-org
+SELECTOR := app.kubernetes.io/name=progapanda-org
 
-.PHONY: build frontend check-hello2 visitor-image dev deploy
+.PHONY: test frontend visitor-image dev run-tui build deploy deploy-tui clean
+
+test:
+	go test ./...
 
 frontend:
 	rm -rf dist
 	docker build -f Dockerfile.frontend --output type=local,dest=dist .
 
-check-hello2:
-	@test -f "$(HELLO2_DIR)/entrypoint.sh" || { \
-		echo "hello2 not found at $(HELLO2_DIR); set HELLO2_DIR=/path/to/hello2" >&2; \
-		exit 1; \
-	}
+visitor-image:
+	docker build -f Dockerfile.visitor -t $(VISITOR_IMAGE) .
 
-visitor-image: check-hello2
-	docker build -t $(VISITOR_IMAGE) $(HELLO2_DIR)
+dev: frontend visitor-image ## Serve the whole site on :4567
+	go run ./cmd/webterm
 
-dev: frontend visitor-image
-	go run .
+run-tui: ## Run the TUI on its own, in this terminal
+	go run ./cmd/hello2
 
-build: frontend
-	GOOS=linux GOARCH=amd64 go build .
+build: test frontend
+	GOOS=linux GOARCH=amd64 go build -o webterm ./cmd/webterm
 	docker build --platform $(PLATFORM) -t $(IMAGE) .
 
-# check-hello2 runs first, and deliberately: new pods come up with empty DinD
-# image caches, so a deploy that cannot reach the hello2 repo would leave
-# visitors on the stale upstream image. Better to fail before rolling than
-# after.
-deploy: check-hello2 build
+# Rolling the pods recreates the Docker-in-Docker sidecars, whose image cache is
+# an emptyDir, so the visitor image is wiped every time. deploy-tui puts it back.
+deploy: build
 	docker push $(IMAGE)
 	kubectl apply -f k8s
 	kubectl rollout restart $(DEPLOYMENT)
 	kubectl rollout status $(DEPLOYMENT) --timeout=300s
-	$(MAKE) -C $(HELLO2_DIR) deploy
+	$(MAKE) deploy-tui
+
+# Inject the TUI into the Docker-in-Docker sidecar of every ready web pod, then
+# rebuild the image tag served to visitors. No registry involved: the base image
+# is already cached inside each DinD daemon.
+#
+# Pods still terminating from a rollout are skipped — they stay listed for a
+# while after the rollout reports done, and copying into one fails. Ready alone
+# is not enough, since a terminating pod stays Ready for a bit; the absent
+# deletionTimestamp (a two-field line) is what marks a pod as staying.
+#
+# ponytail: emptyDir storage, so this is lost on pod restart. Push the image to
+# Docker Hub instead if it needs to survive.
+# build/, not dist/: dist/ is the frontend bundle, is tracked, and is wiped by
+# `make frontend`. This binary is also linux/amd64 and will not run on a Mac.
+deploy-tui: test
+	@mkdir -p build
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o build/hello2 ./cmd/hello2
+	@pods=$$(kubectl get pods -l $(SELECTOR) \
+		-o jsonpath='{range .items[*]}{.metadata.name} {.status.conditions[?(@.type=="Ready")].status} {.metadata.deletionTimestamp}{"\n"}{end}' \
+		| awk 'NF == 2 && $$2 == "True" { print $$1 }') || exit 1; \
+	test -n "$$pods" || { echo "no ready pods match $(SELECTOR) (KUBECONFIG=$$KUBECONFIG)" >&2; exit 1; }; \
+	for pod in $$pods; do \
+		echo "==> $$pod"; \
+		kubectl cp build/hello2 $$pod:/tmp/hello2 -c dind-daemon || exit 1; \
+		kubectl cp cmd/hello2/entrypoint.sh $$pod:/tmp/entrypoint.sh -c dind-daemon || exit 1; \
+		kubectl cp cmd/hello2/canihackit.hack $$pod:/tmp/canihackit.hack -c dind-daemon || exit 1; \
+		kubectl exec $$pod -c dind-daemon -- sh -c '\
+			docker pull -q $(VISITOR_BASE) && \
+			cd /tmp && printf "FROM $(VISITOR_BASE)\nCOPY hello2 /app/hello2\nCOPY entrypoint.sh /app/entrypoint.sh\nCOPY canihackit.hack /app/canihackit.hack\n" > Dockerfile.hello2 && \
+			chmod +x hello2 entrypoint.sh && \
+			docker build -q -f Dockerfile.hello2 -t $(VISITOR_IMAGE) . ' || exit 1; \
+	done; \
+	echo "Deployed. New sessions start with ./hello2 pre-filled."
+
+clean:
+	rm -rf build webterm

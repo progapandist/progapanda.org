@@ -1,4 +1,5 @@
 node_modules
 .cache
 webterm
+build/
 yarn-error.log
