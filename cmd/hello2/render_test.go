@@ -162,6 +162,27 @@ func TestNarrowMenuIsTappableAcrossFullWidth(t *testing.T) {
 	}
 }
 
+// A swipe arrives as a wheel event and must scroll the content even in browse
+// mode — tapping a menu item leaves focus on the menu, and a phone shows both.
+func TestWheelScrollsContentWithoutFocus(t *testing.T) {
+	sized, _ := model{}.Update(tea.WindowSizeMsg{Width: 36, Height: 24})
+	m := sized.(model)
+	if m.reading {
+		t.Fatal("expected to start in browse mode")
+	}
+	if m.vp.YOffset != 0 {
+		t.Fatalf("expected to start at the top, got offset %d", m.vp.YOffset)
+	}
+
+	scrolled, _ := m.Update(tea.MouseMsg{
+		Button: tea.MouseButtonWheelDown,
+		Action: tea.MouseActionPress,
+	})
+	if got := scrolled.(model).vp.YOffset; got == 0 {
+		t.Error("wheel down did not scroll the content pane")
+	}
+}
+
 func TestContentUsesSingleCellCharacters(t *testing.T) {
 	for _, section := range sections {
 		for _, r := range section.body {

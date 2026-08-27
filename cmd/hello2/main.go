@@ -174,6 +174,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// A wheel event scrolls the content pane whether or not it has focus. The
+	// frontend turns a touch swipe into these, and on a phone both panes are on
+	// screen at once, so requiring focus first would leave a tapped section
+	// unscrollable. The menu is short enough never to need scrolling itself.
+	if mouse, ok := msg.(tea.MouseMsg); ok {
+		switch mouse.Button {
+		case tea.MouseButtonWheelUp, tea.MouseButtonWheelDown:
+			var cmd tea.Cmd
+			m.vp, cmd = m.vp.Update(msg)
+			return m, cmd
+		}
+	}
+
 	if !m.reading {
 		return m, nil
 	}

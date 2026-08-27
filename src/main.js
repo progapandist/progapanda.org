@@ -60,6 +60,10 @@ let receivedOutput = false;
 let commandPrefilled = false;
 let outputTail = "";
 
+// A coarse pointer means no keyboard to press Enter with, and fingers instead
+// of a wheel. Both of those need handling below.
+const touchOnly = window.matchMedia("(pointer: coarse)").matches;
+
 const spinnerFrames = ["◒", "◐", "◓", "◑"];
 let spinnerFrame = 0;
 
@@ -137,6 +141,11 @@ function connect() {
     if (!commandPrefilled && outputTail.includes("/app $ ")) {
       commandPrefilled = true;
       send(0, "./hello2");
+      // "Press Enter to continue" is not an option without a keyboard, so run
+      // it after a beat long enough to read the banner.
+      if (touchOnly) {
+        window.setTimeout(() => send(0, "\r"), 1200);
+      }
     }
   });
 
@@ -150,6 +159,65 @@ function connect() {
   websocket.addEventListener("error", (event) => {
     console.error("Terminal WebSocket error", event);
   });
+}
+
+// The TUI asks Xterm to report mouse events to it, which leaves touch gestures
+// meaning nothing at all. Translate a vertical swipe into the wheel events its
+// viewport already understands. Taps are left alone so they still select a
+// menu item.
+if (touchOnly) {
+  const WHEEL_UP = 64;
+  const WHEEL_DOWN = 65;
+  // Each wheel event scrolls three lines, so require three rows of travel per
+  // event and the content keeps pace with the finger.
+  const LINES_PER_EVENT = 3;
+  let anchorY = null;
+
+  const rowHeight = () =>
+    terminalElement.clientHeight / terminal.rows || 20;
+
+  terminalElement.addEventListener(
+    "touchstart",
+    (event) => {
+      anchorY = event.touches.length === 1 ? event.touches[0].clientY : null;
+    },
+    { passive: true },
+  );
+
+  terminalElement.addEventListener(
+    "touchmove",
+    (event) => {
+      if (anchorY === null || event.touches.length !== 1) {
+        return;
+      }
+
+      const step = rowHeight() * LINES_PER_EVENT;
+      const travelled = anchorY - event.touches[0].clientY;
+      const events = Math.trunc(travelled / step);
+      if (events === 0) {
+        return;
+      }
+
+      // Only now is this a scroll rather than a tap, so only now claim the
+      // gesture from the browser's own panning.
+      event.preventDefault();
+      anchorY -= events * step;
+
+      const button = events > 0 ? WHEEL_DOWN : WHEEL_UP;
+      for (let i = 0; i < Math.min(Math.abs(events), 8); i += 1) {
+        send(0, `\x1b[<${button};1;1M`);
+      }
+    },
+    { passive: false },
+  );
+
+  terminalElement.addEventListener(
+    "touchend",
+    () => {
+      anchorY = null;
+    },
+    { passive: true },
+  );
 }
 
 const resizeObserver = new ResizeObserver(() => fitAddon.fit());
