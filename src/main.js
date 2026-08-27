@@ -10,7 +10,7 @@ const terminal = new Terminal({
   fontFamily:
     'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
   fontSize: 17,
-  lineHeight: 1.15,
+  lineHeight: 1,
   theme: {
     background: "#0b0b0f",
     foreground: "#eeeeee",
