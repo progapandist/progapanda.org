@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -224,29 +223,34 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	// Constantly read from process and copy to websocket
+	// Preserve the PTY byte stream exactly. Xterm owns the stateful UTF-8
+	// decoder because a multibyte character may span WebSocket messages.
+	if err := copyOutput(conn, tty); err != nil && err != io.EOF {
+		select {
+		case <-clientDone:
+		default:
+			l.WithError(err).Warn("Terminal process ended unexpectedly")
+		}
+	}
+	stop()
+}
+
+type messageWriter interface {
+	WriteMessage(messageType int, data []byte) error
+}
+
+func copyOutput(dst messageWriter, src io.Reader) error {
+	buf := make([]byte, 32*1024)
 	for {
-		buf := make([]byte, 1024)
-		read, err := tty.Read(buf)
-		if err != nil {
-			if err != io.EOF {
-				select {
-				case <-clientDone:
-				default:
-					l.WithError(err).Warn("Terminal process ended unexpectedly")
-				}
+		n, readErr := src.Read(buf)
+		if n > 0 {
+			if err := dst.WriteMessage(websocket.BinaryMessage, buf[:n]); err != nil {
+				return err
 			}
-			stop()
-			return
 		}
-		ttywriter, err := conn.NextWriter(websocket.BinaryMessage)
-		if err != nil {
-			markClientDone()
-			stop()
-			return
+		if readErr != nil {
+			return readErr
 		}
-		ttywriter.Write(bytes.ToValidUTF8(buf[:read], []byte{}))
-		ttywriter.Close()
 	}
 }
 

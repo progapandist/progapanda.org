@@ -1,15 +1,11 @@
-FROM node:16-bullseye AS build
+FROM node:24-bookworm AS build
 
 WORKDIR /src
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends g++ make python3 \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY package.json yarn.lock ./
 RUN yarn install --frozen-lockfile
 
 COPY src ./src
-RUN yarn parcel build src/index.html --no-cache --out-dir /out
+RUN yarn build
 
 FROM scratch
-COPY --from=build /out/ /
+COPY --from=build /src/dist/ /

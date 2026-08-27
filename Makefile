@@ -3,6 +3,7 @@ export KUBECONFIG
 
 HELLO2_DIR ?= ../hello2
 VISITOR_IMAGE := progapandist/hello
+PLATFORM := linux/amd64
 
 .PHONY: build frontend visitor-image dev deploy
 
@@ -22,11 +23,11 @@ dev: frontend visitor-image
 
 build: frontend
 	GOOS=linux GOARCH=amd64 go build .
-	docker build -t progapandist/progapanda-org .
+	docker build --platform $(PLATFORM) -t progapandist/progapanda-org .
 
 # Recreating the pods wipes the image cache in each DinD sidecar, so ./hello2
 # has to be redeployed from the hello2 repo afterwards.
-deploy:
+deploy: build
 	docker push progapandist/progapanda-org
 	kubectl apply -f k8s
 	kubectl delete pod -l app.kubernetes.io/name=progapanda-org
