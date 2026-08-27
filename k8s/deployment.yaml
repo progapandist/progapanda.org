@@ -40,6 +40,15 @@ spec:
             - name: http
               containerPort: 4567
               protocol: TCP
+          # Keep a pod out of rotation until its dind sidecar answers on TLS
+          # :2376. Without this the failure is invisible: webterm serves fine
+          # and only apologizes once a visitor asks for a container.
+          readinessProbe:
+            exec:
+              command: ["docker", "info"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
           resources:
             requests:
               cpu: 20m
@@ -77,8 +86,11 @@ spec:
 
       # Volumes
       volumes:
+        # Per-pod, NOT a shared hostPath. Every dind regenerates these certs on
+        # startup; when replicas shared one directory they clobbered each
+        # other's openssl scratch files, and the loser of the race fell back to
+        # plaintext :2375 while webterm kept dialling TLS :2376.
         - name: docker-certs
-          hostPath:
-            path: /certs
+          emptyDir: {}
         - name: docker-graph-storage
           emptyDir: {}
