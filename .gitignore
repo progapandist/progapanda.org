@@ -3,3 +3,10 @@ node_modules
 webterm
 build/
 yarn-error.log
+
+# Agent scratch space, not project files. Delta clones this repo into
+# .delta/clones and checks out worktrees beside it — a few hundred MB. Both
+# tools also ignore these locally, but that config never leaves this machine,
+# so a fresh clone needs the rules here.
+.delta/
+.claude/settings.local.json
