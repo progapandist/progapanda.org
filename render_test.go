@@ -40,12 +40,36 @@ func TestBulletHangs(t *testing.T) {
 }
 
 func TestLinkedBulletMakesHeadlineClickable(t *testing.T) {
-	got := render("- stripeek|https://github.com/progapandist/stripeek\n  Description.", 52)
+	got := render("- [stripeek](https://github.com/progapandist/stripeek)\n  Description.", 52)
 	if !strings.Contains(got, "\x1b]8;;https://github.com/progapandist/stripeek\x1b\\") {
 		t.Fatalf("linked bullet is missing its OSC 8 target: %q", got)
 	}
 	if !strings.Contains(got, "stripeek") {
 		t.Fatalf("linked bullet is missing its label: %q", got)
+	}
+}
+
+// content.md drives the menu: one section per "# " heading, in file order.
+func TestParseSections(t *testing.T) {
+	got := parseSections("# One\n\n## Heading\n\nBody.\n\n# Two\n\nMore.\n")
+	if len(got) != 2 {
+		t.Fatalf("expected 2 sections, got %d: %#v", len(got), got)
+	}
+	if got[0].name != "One" || got[0].body != "## Heading\n\nBody." {
+		t.Errorf("first section: %#v", got[0])
+	}
+	if got[1].name != "Two" || got[1].body != "More." {
+		t.Errorf("second section: %#v", got[1])
+	}
+}
+
+// A run of markdown links is a link block, prose that merely mentions one is not.
+func TestLinkBlockNeedsEveryLineToBeALink(t *testing.T) {
+	if !isLinkBlock("[Email](mailto:andrey@hey.com)\n[Site](https://progapanda.org)") {
+		t.Error("a run of links should be a link block")
+	}
+	if isLinkBlock("See [Site](https://progapanda.org) for more.") {
+		t.Error("a paragraph mentioning a link should stay a paragraph")
 	}
 }
 
@@ -75,6 +99,7 @@ func TestViewFitsTerminalWidth(t *testing.T) {
 	var current tea.Model = model{}
 	for _, size := range []tea.WindowSizeMsg{
 		{Width: 120, Height: 40},
+		{Width: 36, Height: 60}, // iPhone
 		{Width: 60, Height: 18},
 		{Width: 80, Height: 30},
 		{Width: 120, Height: 40},
@@ -114,9 +139,26 @@ func TestMenuClickIgnoresOutsideCoordinates(t *testing.T) {
 		{x: 10, y: menuItemsY - 1},
 		{x: 10, y: menuItemsY + len(sections)},
 	} {
-		if index, ok := menuIndexAt(point.x, point.y); ok {
+		if index, ok := (model{w: 120}).menuIndexAt(point.x, point.y); ok {
 			t.Errorf("menuIndexAt(%d, %d) unexpectedly returned %d", point.x, point.y, index)
 		}
+	}
+}
+
+// Stacked, the menu spans the whole width, so taps past the old 26-column
+// menu box must still land on an item.
+func TestNarrowMenuIsTappableAcrossFullWidth(t *testing.T) {
+	narrow, _ := model{}.Update(tea.WindowSizeMsg{Width: 36, Height: 60})
+	m := narrow.(model)
+	if !m.narrow() {
+		t.Fatal("36 columns should stack the panes")
+	}
+	index, ok := m.menuIndexAt(30, menuItemsY+2)
+	if !ok || index != 2 {
+		t.Errorf("tap at x=30 gave (%d, %v), want (2, true)", index, ok)
+	}
+	if _, ok := m.menuIndexAt(30, menuItemsY+len(sections)); ok {
+		t.Error("tap below the last item should miss")
 	}
 }
 

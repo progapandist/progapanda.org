@@ -11,7 +11,7 @@ with `./hello` at the prompt to run the original.
 
 ## How it fits in
 
-`progapanda.org` serves a Svelte + Xterm.js frontend. A Go server upgrades to a
+`progapanda.org` serves an Xterm.js frontend. A Go server upgrades to a
 WebSocket, starts a network-less Alpine container per visitor, and pipes its
 stdin/stdout over the socket. This program is what runs inside that container.
 
@@ -19,22 +19,31 @@ stdin/stdout over the socket. This program is what runs inside that container.
 
 | file | what |
 |---|---|
+| `content.md` | **all the prose — edit this to change the copy** |
 | `main.go` | Bubble Tea model: menu, viewport, focus, layout |
-| `content.go` | all the prose, in a tiny line-prefix markup |
-| `render.go` | markup → styled, wrapped text |
+| `content.go` | embeds `content.md` and splits it into sections |
+| `render.go` | markdown → styled, wrapped text |
 
-Markup, one block per blank-line-separated chunk:
+`content.md` is embedded into the binary at build time. Every `# ` heading
+starts a new section and becomes its menu entry, in file order. Within a
+section, blank lines separate blocks and the opening characters pick the style:
 
-```
-# heading
-- bullet headline
+```markdown
+## heading
+
+- bullet headline, or a [label](https://url) to make it clickable
   continuation text, hangs under the bullet
-@ Label|https://url
+
+[Label](https://url)
+[Another](https://url)
+
 anything else is a paragraph
 ```
 
-Source line breaks are ignored; text is re-wrapped to the terminal's real
-width, so the content files can stay readable.
+A block of consecutive links renders as a label/URL list; `mailto:` is stripped
+from what's displayed. Source line breaks are ignored — text is re-wrapped to
+the terminal's real width, so `content.md` can stay readable (and it renders on
+GitHub).
 
 ## Usage
 

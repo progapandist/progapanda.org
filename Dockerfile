@@ -4,7 +4,7 @@ FROM golang:1.26.3-alpine AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
-COPY *.go ./
+COPY *.go content.md ./
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /hello2 .
 
 FROM alpine

@@ -11,9 +11,10 @@ import (
 )
 
 const (
-	menuWidth  = 26 // total, including border and padding
-	headerH    = 2
-	menuItemsY = headerH + 3 // top border, INDEX heading, and rule
+	menuWidth    = 26 // total, including border and padding
+	minPaneWidth = 20
+	headerH      = 2
+	menuItemsY   = headerH + 3 // top border, INDEX heading, and rule
 )
 
 var (
@@ -62,13 +63,31 @@ type model struct {
 
 func (m model) Init() tea.Cmd { return nil }
 
+// narrow reports whether the two panes cannot sit side by side. A phone gives
+// us about 36 columns; the menu alone wants 26, so below this the panes stack.
+func (m model) narrow() bool {
+	return m.w < menuWidth+minPaneWidth+box.GetHorizontalFrameSize()
+}
+
 // paneWidth is the usable text width inside the content box.
 func (m model) paneWidth() int {
 	w := m.w - menuWidth - box.GetHorizontalFrameSize()
-	if w < 20 {
-		w = 20
+	if m.narrow() {
+		w = m.w - box.GetHorizontalFrameSize()
+	}
+	if w < minPaneWidth {
+		w = minPaneWidth
 	}
 	return w
+}
+
+// menuHeight is the height of the menu box: the full pane when side by side,
+// only as tall as the list itself when stacked, so the content keeps the rest.
+func (m model) menuHeight() int {
+	if m.narrow() {
+		return len(sections) + 2 // the INDEX heading and its rule
+	}
+	return max(5, m.h-headerH-box.GetVerticalFrameSize()-1)
 }
 
 func (m *model) setContent() {
@@ -76,9 +95,13 @@ func (m *model) setContent() {
 	m.vp.GotoTop()
 }
 
-func menuIndexAt(x, y int) (int, bool) {
+func (m model) menuIndexAt(x, y int) (int, bool) {
+	right := menuWidth - 1
+	if m.narrow() {
+		right = m.w - 1
+	}
 	index := y - menuItemsY
-	if x <= 0 || x >= menuWidth-1 || index < 0 || index >= len(sections) {
+	if x <= 0 || x >= right || index < 0 || index >= len(sections) {
 		return 0, false
 	}
 	return index, true
@@ -93,6 +116,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.w, m.h = max(1, msg.Width-1), msg.Height
 		// Header (2) + frame (2) + footer (1) + pane title/rule (2).
 		vpH := m.h - headerH - box.GetVerticalFrameSize() - 3
+		if m.narrow() {
+			// Stacked, so the menu box is above rather than beside us.
+			vpH -= m.menuHeight() + box.GetVerticalFrameSize()
+		}
 		if vpH < 3 {
 			vpH = 3
 		}
@@ -135,7 +162,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.MouseMsg:
 		if msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {
-			if index, ok := menuIndexAt(msg.X, msg.Y); ok && m.ready {
+			if index, ok := m.menuIndexAt(msg.X, msg.Y); ok && m.ready {
 				if sections[index].name == "Quit" {
 					return m, tea.Quit
 				}
@@ -170,16 +197,17 @@ func (m model) View() string {
 		}
 		items = append(items, itemStyle.Render(metaStyle.Render(number)+"  "+s.name))
 	}
-	menuH := m.h - headerH - box.GetVerticalFrameSize() - 1
-	if menuH < 5 {
-		menuH = 5
-	}
+	menuH := m.menuHeight()
 	menuContent := lipgloss.JoinVertical(lipgloss.Left,
 		kickerStyle.Render("INDEX"),
 		metaStyle.Render("──────────────"),
 		strings.Join(items, "\n"),
 	)
-	menu := lipgloss.NewStyle().Width(menuWidth - box.GetHorizontalFrameSize()).
+	menuInnerWidth := menuWidth - box.GetHorizontalFrameSize()
+	if m.narrow() {
+		menuInnerWidth = m.paneWidth()
+	}
+	menu := lipgloss.NewStyle().Width(menuInnerWidth).
 		Height(menuH).Render(menuContent)
 
 	menuBox, contentBox := boxFocused, box
@@ -205,6 +233,12 @@ func (m model) View() string {
 		menuBox.Height(menuH).Render(menu),
 		contentBox.Height(menuH).Render(content),
 	)
+	if m.narrow() {
+		panes = lipgloss.JoinVertical(lipgloss.Left,
+			menuBox.Height(menuH).Render(menu),
+			contentBox.Height(m.vp.Height+2).Render(content),
+		)
+	}
 	return m.header() + "\n" + panes + "\n" + m.footer()
 }
 

@@ -1,15 +1,21 @@
 package main
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 )
 
-// render turns the tiny markup in content.go into styled text wrapped to width.
-// Blocks are separated by blank lines; the first two characters of a block pick
+// render turns the markdown in content.md into styled text wrapped to width.
+// Blocks are separated by blank lines and the first characters of a block pick
 // the style. Source line breaks are ignored — text is re-wrapped to the real
 // terminal width.
+//
+//	## heading
+//	- bullet, headline optionally a [label](url)
+//	[label](url), one per line, for a block of links
+//	anything else is a paragraph
 func render(body string, width int) string {
 	if width < 20 {
 		width = 20
@@ -21,11 +27,11 @@ func render(body string, width int) string {
 			continue
 		}
 		switch {
-		case strings.HasPrefix(block, "# "):
-			out = append(out, wrapStyled(block[2:], width, headingStyle, "", ""))
+		case strings.HasPrefix(block, "## "):
+			out = append(out, wrapStyled(block[3:], width, headingStyle, "", ""))
 		case strings.HasPrefix(block, "- "):
 			out = append(out, bulletBlock(block[2:], width))
-		case strings.HasPrefix(block, "@ "):
+		case isLinkBlock(block):
 			out = append(out, linkBlock(block, width))
 		default:
 			out = append(out, wrapStyled(block, width, bodyStyle, "", ""))
@@ -34,12 +40,33 @@ func render(body string, width int) string {
 	return strings.Join(out, "\n\n")
 }
 
+var linkPattern = regexp.MustCompile(`^\[([^\]]+)\]\(([^)]+)\)$`)
+
+// parseLink pulls the label and target out of a markdown "[label](url)" line.
+func parseLink(line string) (label, url string, ok bool) {
+	m := linkPattern.FindStringSubmatch(strings.TrimSpace(line))
+	if m == nil {
+		return "", "", false
+	}
+	return m[1], m[2], true
+}
+
+// isLinkBlock reports whether every line of the block is a markdown link, which
+// is what separates a run of links from an ordinary paragraph.
+func isLinkBlock(block string) bool {
+	for _, line := range strings.Split(block, "\n") {
+		if _, _, ok := parseLink(line); !ok {
+			return false
+		}
+	}
+	return true
+}
+
 // bulletBlock renders "▸ headline" with any following text hanging under it.
 func bulletBlock(block string, width int) string {
 	head, rest, _ := strings.Cut(block, "\n")
-	label, url, linked := strings.Cut(head, "|")
 	s := ""
-	if linked {
+	if label, url, ok := parseLink(head); ok {
 		s = bulletStyle.Render("▸ ") + terminalLink(label, url)
 	} else {
 		s = wrapStyled(head, width, bulletStyle, "▸ ", "  ")
@@ -64,10 +91,12 @@ func terminalLink(label, url string) string {
 func linkBlock(block string, width int) string {
 	var links []string
 	for _, line := range strings.Split(block, "\n") {
-		label, url, found := strings.Cut(strings.TrimPrefix(line, "@ "), "|")
-		if !found {
+		label, url, ok := parseLink(line)
+		if !ok {
 			continue
 		}
+		// mailto: is for the terminal, not for the reader.
+		url = strings.TrimPrefix(url, "mailto:")
 		if lipgloss.Width(label+"  "+url) <= width {
 			links = append(links, labelStyle.Render(label)+"  "+linkStyle.Render(url))
 			continue
