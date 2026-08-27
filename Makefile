@@ -28,15 +28,20 @@ clean:
 	rm -rf dist
 
 # Inject the binary and welcome screen into the Docker-in-Docker sidecar of
-# every web pod, then rebuild the image tag served to visitors. No registry
+# every ready web pod, then rebuild the image tag served to visitors. Pods
+# still terminating from a rollout are skipped: they are listed for a while
+# after the rollout reports done, and copying into one fails. Ready alone is
+# not enough — a terminating pod stays Ready for a bit — so the absent
+# deletionTimestamp (a two-field line) is what marks a pod as staying. No registry
 # involved: the base image is already cached inside each DinD daemon.
 # ponytail: emptyDir storage, so this is lost on pod restart. Push the image
 # to Docker Hub instead if it needs to survive.
 deploy: build
-	@pods=$$(kubectl get pods -l $(SELECTOR) -o name) || exit 1; \
-	test -n "$$pods" || { echo "no pods match $(SELECTOR) (KUBECONFIG=$$KUBECONFIG)" >&2; exit 1; }; \
+	@pods=$$(kubectl get pods -l $(SELECTOR) \
+		-o jsonpath='{range .items[*]}{.metadata.name} {.status.conditions[?(@.type=="Ready")].status} {.metadata.deletionTimestamp}{"\n"}{end}' \
+		| awk 'NF == 2 && $$2 == "True" { print $$1 }') || exit 1; \
+	test -n "$$pods" || { echo "no ready pods match $(SELECTOR) (KUBECONFIG=$$KUBECONFIG)" >&2; exit 1; }; \
 	for pod in $$pods; do \
-		pod=$${pod#pod/}; \
 		echo "==> $$pod"; \
 		kubectl cp $(DIST) $$pod:/tmp/$(BINARY) -c dind-daemon || exit 1; \
 		kubectl cp entrypoint.sh $$pod:/tmp/entrypoint.sh -c dind-daemon || exit 1; \
