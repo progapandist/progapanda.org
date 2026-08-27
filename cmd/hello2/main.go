@@ -20,6 +20,7 @@ const (
 var (
 	accent    = lipgloss.Color("212")
 	secondary = lipgloss.Color("81")
+	online    = lipgloss.Color("84") // the status dot, and only that
 	subtle    = lipgloss.Color("241")
 	muted     = lipgloss.Color("245")
 	bright    = lipgloss.Color("255")
@@ -51,6 +52,7 @@ var (
 	footerStyle = lipgloss.NewStyle().Foreground(muted)
 	keyStyle    = lipgloss.NewStyle().Foreground(secondary).Bold(true)
 	modeStyle   = lipgloss.NewStyle().Foreground(ink).Background(secondary).Bold(true).Padding(0, 1)
+	onlineStyle = lipgloss.NewStyle().Foreground(online).Bold(true)
 )
 
 type model struct {
@@ -257,7 +259,7 @@ func (m model) View() string {
 
 func (m model) header() string {
 	left := brandStyle.Render("◆ PROGAPANDA") + metaStyle.Render("  /  PORTFOLIO.TUI")
-	right := kickerStyle.Render("● ONLINE")
+	right := onlineStyle.Render("● ONLINE")
 	rule := lipgloss.NewStyle().Foreground(subtle).Render(strings.Repeat("─", max(0, m.w)))
 	return spread(left, right, m.w) + "\n" + rule
 }
