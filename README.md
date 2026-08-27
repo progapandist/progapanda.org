@@ -29,6 +29,7 @@ be a resize — the server needs it to size the PTY.
 | `cmd/hello2/content.md` | **all the prose — edit this to change the copy** |
 | `src` | Xterm.js frontend, built with Vite |
 | `k8s` | Deployment, Service, Ingress, cert |
+| `tools/icons.py` | regenerates the favicon and link-preview image |
 
 `cmd/hello2/content.md` is embedded into the TUI binary at build time. Every
 `# ` heading starts a new section and becomes its menu entry, in file order.
@@ -106,7 +107,7 @@ as a portfolio.
 
 ## Contact me
 
-andrey@hey.com
+Andy Baranov — andrey@hey.com
 
 ## License
 
