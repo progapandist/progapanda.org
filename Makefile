@@ -74,9 +74,17 @@ deploy-tui: payload
 payload: test
 	@rm -rf build/payload && mkdir -p build/payload
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o build/payload/hello2 ./cmd/hello2
-	docker build -f Dockerfile.visitor --target stripeek-export --output type=local,dest=build/payload .
+	docker build --platform $(PLATFORM) -f Dockerfile.visitor --target stripeek-export --output type=local,dest=build/payload .
 	cp visitor/entrypoint.sh visitor/canihackit.hack visitor/stripeek visitor/stripeek-history.json build/payload/
 	chmod +x build/payload/hello2 build/payload/stripeek build/payload/stripeek.bin build/payload/entrypoint.sh
+	@# The cluster is amd64. An arm64 binary here does not fail loudly: exec
+	@# returns ENOEXEC and the shell tries to read the ELF as a script.
+	@for b in hello2 stripeek.bin; do \
+		file build/payload/$$b | grep -q x86-64 || { \
+			echo "build/payload/$$b is not x86-64:" >&2; \
+			file build/payload/$$b >&2; exit 1; }; \
+	done
+	@echo "payload staged, both binaries x86-64"
 
 clean:
 	rm -rf build webterm

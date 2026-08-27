@@ -25,5 +25,9 @@ COPY --from=build /hello2 ./hello2
 COPY --from=stripeek /go/bin/stripeek ./stripeek.bin
 COPY visitor/ ./
 ENV TERM=xterm-256color
+# So `stripeek` and `hello2` work without ./ — the TUI tells visitors to type
+# the bare name, and being told to type something that then fails is worse than
+# not mentioning it.
+ENV PATH="/app:$PATH"
 ENTRYPOINT ["./entrypoint.sh"]
 CMD ["./hello2"]
