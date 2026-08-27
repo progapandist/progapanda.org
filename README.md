@@ -33,16 +33,21 @@ be a resize — the server needs it to size the PTY.
 ```sh
 make dev      # frontend + local visitor image, then serve on :4567
 make build    # frontend, linux binary, container image
-make deploy   # push, kubectl apply, roll the pods
+make deploy   # push, apply, roll the pods, reinstall the TUI
 ```
 
 `make dev` builds the visitor image from `../hello2`; point `HELLO2_DIR`
 elsewhere if it lives somewhere else.
 
-**Deploy order matters.** Rolling these pods recreates the Docker-in-Docker
-sidecars, and their image cache is an `emptyDir` — so `make deploy` here wipes
-the visitor image. Redeploy `hello2` afterwards, or visitors get whatever the
-`progapandist/hello` base image last had baked in.
+`make deploy` finishes the job: rolling these pods recreates the
+Docker-in-Docker sidecars, whose image cache is an `emptyDir`, so the visitor
+image is wiped every time. It therefore ends by running `make deploy` in the
+hello2 repo to put the TUI back. That is also why `HELLO2_DIR` is checked
+before anything is pushed — failing after the roll would leave visitors on the
+stale upstream image.
+
+Changed only the TUI or its copy? Deploy from the hello2 repo directly; nothing
+here needs to restart.
 
 Deploys need `KUBECONFIG` pointed at the k3s cluster (defaults to
 `~/kubeconfig`).
