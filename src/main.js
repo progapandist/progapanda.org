@@ -55,6 +55,11 @@ terminal.loadAddon(new WebLinksAddon());
 terminal.open(terminalElement);
 terminal.focus();
 
+// A full-screen app (the TUI) owns the alternate buffer and asks for mouse
+// reporting; the shell does neither. That difference decides who handles
+// scrolling and whether a keyboard is any use.
+const fullscreenApp = () => terminal.buffer.active.type === "alternate";
+
 // Xterm reads keystrokes through a hidden textarea, so tapping the terminal
 // focuses it and iOS raises the keyboard over the UI. A full-screen app is
 // driven by taps and swipes and has nothing to type into, so suppress the
@@ -66,14 +71,14 @@ function syncKeyboard() {
     return;
   }
 
-  const fullscreenApp = terminal.buffer.active.type === "alternate";
-  input.inputMode = fullscreenApp ? "none" : "text";
+  const fullscreen = fullscreenApp();
+  input.inputMode = fullscreen ? "none" : "text";
 
   // iOS only offers the keyboard when a blurred element gains focus, and
   // leaving the app does not move focus. Let go of it, so the next tap counts
   // as a fresh focus. On desktop keep it, or typing would stop working after
   // quitting the TUI.
-  if (touchOnly && !fullscreenApp) {
+  if (touchOnly && !fullscreen) {
     input.blur();
   }
 }
@@ -187,20 +192,82 @@ function connect() {
   });
 }
 
+const WHEEL_UP = 64;
+const WHEEL_DOWN = 65;
+// Each wheel event scrolls three lines in the TUI's viewport.
+const LINES_PER_EVENT = 3;
+
+const rowHeight = () => terminalElement.clientHeight / terminal.rows || 20;
+
+// Every wheel event costs a round trip and a repaint inside a 0.1-CPU
+// container — about 45ms. Wheels and touchmove both fire far faster than that,
+// and sending each one separately queues repaints the server cannot keep up
+// with, which reads as lag. So accumulate and send at most one message per
+// FLUSH_MS, carrying everything since the last: the TUI applies them all and
+// repaints once.
+const FLUSH_MS = 40;
+const MAX_PER_FLUSH = 6;
+let pendingWheel = 0;
+let wheelCarry = 0;
+let flushTimer = null;
+let lastFlush = 0;
+
+function flushWheel() {
+  flushTimer = null;
+  lastFlush = performance.now();
+  if (pendingWheel === 0) {
+    return;
+  }
+
+  const button = pendingWheel > 0 ? WHEEL_DOWN : WHEEL_UP;
+  const count = Math.min(Math.abs(pendingWheel), MAX_PER_FLUSH);
+  pendingWheel = 0;
+  send(0, `\x1b[<${button};1;1M`.repeat(count));
+}
+
+function queueWheel(events) {
+  pendingWheel += events;
+  if (flushTimer !== null) {
+    return;
+  }
+  flushTimer = window.setTimeout(
+    flushWheel,
+    Math.max(0, FLUSH_MS - (performance.now() - lastFlush)),
+  );
+}
+
+// Take the wheel away from Xterm so it goes through the same batching. Left to
+// itself it emits one sequence per tick, which is what made a trackpad flick
+// crawl on the desktop too.
+terminal.attachCustomWheelEventHandler((event) => {
+  // At the shell, Xterm scrolls its own scrollback and nothing is listening
+  // for mouse reports — sending them there would type escape sequences at the
+  // prompt.
+  if (!fullscreenApp()) {
+    return true;
+  }
+
+  // Carry the fraction over between events. A trackpad sends a stream of
+  // small deltas, and truncating each one on its own rounds every last one of
+  // them to zero — which, since we also stop Xterm handling it, means nothing
+  // scrolls at all.
+  const perEvent =
+    event.deltaMode === 1 ? LINES_PER_EVENT : rowHeight() * LINES_PER_EVENT;
+  wheelCarry += event.deltaY / perEvent;
+  const events = Math.trunc(wheelCarry);
+  if (events !== 0) {
+    wheelCarry -= events;
+    queueWheel(events);
+  }
+  return false;
+});
+
 // The TUI asks Xterm to report mouse events to it, which leaves touch gestures
 // meaning nothing at all. Translate a vertical swipe into the wheel events its
 // viewport already understands. Taps are left alone so they still select a
 // menu item.
 if (touchOnly) {
-  const WHEEL_UP = 64;
-  const WHEEL_DOWN = 65;
-  // Each wheel event scrolls three lines, so require three rows of travel per
-  // event and the content keeps pace with the finger.
-  const LINES_PER_EVENT = 3;
   let anchorY = null;
-
-  const rowHeight = () =>
-    terminalElement.clientHeight / terminal.rows || 20;
 
   terminalElement.addEventListener(
     "touchstart",
@@ -213,7 +280,7 @@ if (touchOnly) {
   terminalElement.addEventListener(
     "touchmove",
     (event) => {
-      if (anchorY === null || event.touches.length !== 1) {
+      if (anchorY === null || event.touches.length !== 1 || !fullscreenApp()) {
         return;
       }
 
@@ -229,10 +296,7 @@ if (touchOnly) {
       event.preventDefault();
       anchorY -= events * step;
 
-      const button = events > 0 ? WHEEL_DOWN : WHEEL_UP;
-      for (let i = 0; i < Math.min(Math.abs(events), 8); i += 1) {
-        send(0, `\x1b[<${button};1;1M`);
-      }
+      queueWheel(events);
     },
     { passive: false },
   );

@@ -11,10 +11,11 @@ import (
 )
 
 const (
-	menuWidth    = 26 // total, including border and padding
-	minPaneWidth = 20
-	headerH      = 2
-	menuItemsY   = headerH + 3 // top border, INDEX heading, and rule
+	menuWidth      = 26 // total, including border and padding
+	minPaneWidth   = 20
+	scrollbarWidth = 2 // a gap column and the bar itself
+	headerH        = 2
+	menuItemsY     = headerH + 3 // top border, INDEX heading, and rule
 )
 
 var (
@@ -53,6 +54,8 @@ var (
 	keyStyle    = lipgloss.NewStyle().Foreground(secondary).Bold(true)
 	modeStyle   = lipgloss.NewStyle().Foreground(ink).Background(secondary).Bold(true).Padding(0, 1)
 	onlineStyle = lipgloss.NewStyle().Foreground(online).Bold(true)
+	thumbStyle  = lipgloss.NewStyle().Foreground(accent)
+	trackStyle  = lipgloss.NewStyle().Foreground(subtle)
 )
 
 type model struct {
@@ -92,8 +95,14 @@ func (m model) menuHeight() int {
 	return max(5, m.h-headerH-box.GetVerticalFrameSize()-1)
 }
 
+// textWidth is the wrapping width inside the viewport, which is the pane less
+// the scrollbar beside it.
+func (m model) textWidth() int {
+	return m.paneWidth() - scrollbarWidth
+}
+
 func (m *model) setContent() {
-	m.vp.SetContent(render(sections[m.cursor].body, m.paneWidth()))
+	m.vp.SetContent(render(sections[m.cursor].body, m.textWidth()))
 	m.vp.GotoTop()
 }
 
@@ -126,10 +135,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			vpH = 3
 		}
 		if !m.ready {
-			m.vp = viewport.New(m.paneWidth(), vpH)
+			m.vp = viewport.New(m.textWidth(), vpH)
 			m.ready = true
 		} else {
-			m.vp.Width, m.vp.Height = m.paneWidth(), vpH
+			m.vp.Width, m.vp.Height = m.textWidth(), vpH
 		}
 		m.setContent()
 		return m, nil
@@ -230,8 +239,10 @@ func (m model) View() string {
 		menuBox, contentBox = box, boxFocused
 	}
 
+	// Show progress whenever the pane can scroll, not only while it has focus:
+	// a tap on a phone leaves focus on the menu but still scrolls.
 	position := fmt.Sprintf("%02d / %02d", m.cursor+1, len(sections))
-	if m.reading {
+	if m.vp.TotalLineCount() > m.vp.Height {
 		position = fmt.Sprintf("%3.0f%%", m.vp.ScrollPercent()*100)
 	}
 	title := spread(
@@ -242,7 +253,7 @@ func (m model) View() string {
 	content := lipgloss.JoinVertical(lipgloss.Left,
 		title,
 		lipgloss.NewStyle().Foreground(subtle).Render(strings.Repeat("━", m.paneWidth())),
-		m.vp.View(),
+		lipgloss.JoinHorizontal(lipgloss.Top, m.vp.View(), m.scrollbar()),
 	)
 	panes := lipgloss.JoinHorizontal(lipgloss.Top,
 		menuBox.Height(menuH).Render(menu),
@@ -276,6 +287,32 @@ func (m model) footer() string {
 	}
 	hints := strings.Join(keys, footerStyle.Render("   "))
 	return spread(mode, hints, m.w)
+}
+
+// scrollbar is a track the height of the viewport, with a thumb sized to the
+// share of the content on screen. Occupies scrollbarWidth columns; blank when
+// everything already fits.
+func (m model) scrollbar() string {
+	h := m.vp.Height
+	rows := make([]string, h)
+	total := m.vp.TotalLineCount()
+	if total <= h {
+		for i := range rows {
+			rows[i] = "  "
+		}
+		return strings.Join(rows, "\n")
+	}
+
+	thumb := max(1, h*h/total)
+	pos := (h - thumb) * m.vp.YOffset / (total - h)
+	for i := range rows {
+		if i >= pos && i < pos+thumb {
+			rows[i] = " " + thumbStyle.Render("┃")
+		} else {
+			rows[i] = " " + trackStyle.Render("│")
+		}
+	}
+	return strings.Join(rows, "\n")
 }
 
 // spread places left and right at opposite edges of a line, accounting for
