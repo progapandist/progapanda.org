@@ -8,8 +8,6 @@ import (
 	"net"
 	"net/http"
 	"os/exec"
-	"syscall"
-	"unsafe"
 
 	"github.com/creack/pty"
 	"github.com/gorilla/mux"
@@ -20,8 +18,6 @@ import (
 type windowSize struct {
 	Rows uint16 `json:"rows"`
 	Cols uint16 `json:"cols"`
-	X    uint16
-	Y    uint16
 }
 
 var upgrader = websocket.Upgrader{
@@ -87,20 +83,58 @@ func stopContainer(name string) {
 	log.Printf("Stopped container %s", out)
 }
 
+func readInitialWindowSize(conn *websocket.Conn) (*pty.Winsize, error) {
+	messageType, reader, err := conn.NextReader()
+	if err != nil {
+		return nil, err
+	}
+	if messageType != websocket.BinaryMessage {
+		return nil, fmt.Errorf("expected binary terminal-size message")
+	}
+
+	var dataType [1]byte
+	if _, err := io.ReadFull(reader, dataType[:]); err != nil {
+		return nil, err
+	}
+	if dataType[0] != 1 {
+		return nil, fmt.Errorf("expected terminal-size message, got type %d", dataType[0])
+	}
+
+	return decodeWindowSize(reader)
+}
+
+func decodeWindowSize(reader io.Reader) (*pty.Winsize, error) {
+	size := windowSize{}
+	if err := json.NewDecoder(reader).Decode(&size); err != nil {
+		return nil, err
+	}
+	if size.Rows == 0 || size.Cols == 0 {
+		return nil, fmt.Errorf("terminal dimensions must be positive")
+	}
+	return &pty.Winsize{Rows: size.Rows, Cols: size.Cols}, nil
+}
+
 func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	l := log.WithField("remoteaddr", r.RemoteAddr)
 
 	conn, err := upgrader.Upgrade(w, r, nil)
-	log.Printf("New connection: %v", conn.RemoteAddr())
 	if err != nil {
 		l.WithError(err).Error("Unable to upgrade connection")
+		return
+	}
+	log.Printf("New connection: %v", conn.RemoteAddr())
+
+	initialSize, err := readInitialWindowSize(conn)
+	if err != nil {
+		l.WithError(err).Error("Unable to read initial terminal size")
+		conn.Close()
 		return
 	}
 
 	containerName := containerNameBasedOnPort(conn.RemoteAddr())
 	cmd := runContainer(containerName)
 
-	tty, err := pty.Start(cmd)
+	tty, err := pty.StartWithSize(cmd, initialSize)
 	if err != nil {
 		l.WithError(err).Error("Unable to start pty/cmd")
 		conn.WriteMessage(websocket.TextMessage, []byte(err.Error()))
@@ -130,20 +164,14 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			dataTypeBuf := make([]byte, 1)
-			read, err := reader.Read(dataTypeBuf)
-			if err != nil {
+			var dataType [1]byte
+			if _, err := io.ReadFull(reader, dataType[:]); err != nil {
 				l.WithError(err).Error("Unable to read message type from reader")
 				conn.WriteMessage(websocket.TextMessage, []byte("Unable to read message type from reader"))
 				return
 			}
 
-			if read != 1 {
-				l.WithField("bytes", read).Error("Unexpected number of bytes read")
-				return
-			}
-
-			switch dataTypeBuf[0] {
+			switch dataType[0] {
 			// It's a binary data message
 			case 0:
 				copied, err := io.Copy(tty, reader)
@@ -151,25 +179,17 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 					l.WithError(err).Errorf("Error after copying %d bytes", copied)
 				}
 			case 1:
-				decoder := json.NewDecoder(reader)
-				resizeMessage := windowSize{}
-				err := decoder.Decode(&resizeMessage)
+				resizeMessage, err := decodeWindowSize(reader)
 				if err != nil {
 					conn.WriteMessage(websocket.TextMessage, []byte("Error decoding resize message: "+err.Error()))
 					continue
 				}
 				log.WithField("resizeMessage", resizeMessage).Info("Resizing terminal")
-				_, _, errno := syscall.Syscall(
-					syscall.SYS_IOCTL,
-					tty.Fd(),
-					syscall.TIOCSWINSZ,
-					uintptr(unsafe.Pointer(&resizeMessage)),
-				)
-				if errno != 0 {
-					l.WithError(syscall.Errno(errno)).Error("Unable to resize terminal")
+				if err := pty.Setsize(tty, resizeMessage); err != nil {
+					l.WithError(err).Error("Unable to resize terminal")
 				}
 			default:
-				l.WithField("dataType", dataTypeBuf[0]).Error("Unknown data type")
+				l.WithField("dataType", dataType[0]).Error("Unknown data type")
 			}
 		}
 	}()
