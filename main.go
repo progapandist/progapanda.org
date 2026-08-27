@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
-	"time"
 	"unsafe"
 
 	"github.com/creack/pty"
@@ -40,27 +39,27 @@ func containerNameBasedOnPort(ra net.Addr) string {
 }
 
 func runContainer(name string) *exec.Cmd {
-	var cmd *exec.Cmd
-	// Blocking
-	_, err := net.DialTimeout("tcp", "127.0.0.1:2376", 1*time.Second)
-
-	if err != nil {
+	// Respect DOCKER_HOST in production and the user's normal Docker context
+	// during local development.
+	if err := exec.Command("docker", "info").Run(); err != nil {
 		fmt.Println(err)
-		cmd = exec.Command(
+		return exec.Command(
 			"echo",
 			"Oops, you're out of luck. Don't fret though! Refresh the page to reconnect to progapanda.org...",
 		)
-		return cmd
 	}
 
-	cmd = exec.Command(
+	return dockerRunCommand(name)
+}
+
+func dockerRunCommand(name string) *exec.Cmd {
+	cmd := exec.Command(
 		"docker",
 		"run",
 		"-it",
 		"--cpus=.1",
 		"--user=1000:1000",
 		"--memory=64M",
-		"--kernel-memory=32M",
 		"--memory-swap=64M",
 		"--network",
 		"none",
@@ -72,6 +71,11 @@ func runContainer(name string) *exec.Cmd {
 	)
 
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
+	// Docker writes host capability warnings (for example, unsupported swap
+	// accounting) to stderr before attaching to the container. Keep those
+	// implementation details out of the visitor's terminal. The TUI itself
+	// renders on stdout, which remains attached to the PTY.
+	cmd.Stderr = io.Discard
 	return cmd
 }
 

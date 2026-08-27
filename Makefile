@@ -1,9 +1,26 @@
 KUBECONFIG ?= $(HOME)/kubeconfig
 export KUBECONFIG
 
-build:
+HELLO2_DIR ?= ../hello2
+VISITOR_IMAGE := progapandist/hello
+
+.PHONY: build frontend visitor-image dev deploy
+
+frontend:
 	rm -rf dist
-	parcel build src/index.html
+	docker build -f Dockerfile.frontend --output type=local,dest=dist .
+
+visitor-image:
+	@test -f "$(HELLO2_DIR)/entrypoint.sh" || { \
+		echo "hello2 not found at $(HELLO2_DIR); set HELLO2_DIR=/path/to/hello2" >&2; \
+		exit 1; \
+	}
+	docker build -t $(VISITOR_IMAGE) $(HELLO2_DIR)
+
+dev: frontend visitor-image
+	go run .
+
+build: frontend
 	GOOS=linux GOARCH=amd64 go build .
 	docker build -t progapandist/progapanda-org .
 
