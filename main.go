@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	menuWidth = 26 // total, including border and padding
-	headerH   = 2
+	menuWidth  = 26 // total, including border and padding
+	headerH    = 2
+	menuItemsY = headerH + 3 // top border, INDEX heading, and rule
 )
 
 var (
@@ -75,6 +76,14 @@ func (m *model) setContent() {
 	m.vp.GotoTop()
 }
 
+func menuIndexAt(x, y int) (int, bool) {
+	index := y - menuItemsY
+	if x <= 0 || x >= menuWidth-1 || index < 0 || index >= len(sections) {
+		return 0, false
+	}
+	return index, true
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -123,6 +132,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cursor = (m.cursor + 1) % len(sections)
 			m.setContent()
 			return m, nil
+		}
+	case tea.MouseMsg:
+		if msg.Button == tea.MouseButtonLeft && msg.Action == tea.MouseActionPress {
+			if index, ok := menuIndexAt(msg.X, msg.Y); ok && m.ready {
+				if sections[index].name == "Quit" {
+					return m, tea.Quit
+				}
+				m.cursor = index
+				m.reading = false
+				m.setContent()
+				return m, nil
+			}
 		}
 	}
 
@@ -227,7 +248,7 @@ func fit(s string, width int) string {
 }
 
 func main() {
-	p := tea.NewProgram(model{}, tea.WithAltScreen())
+	p := tea.NewProgram(model{}, tea.WithAltScreen(), tea.WithMouseCellMotion())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
 		os.Exit(1)

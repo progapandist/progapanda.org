@@ -90,6 +90,36 @@ func TestViewFitsTerminalWidth(t *testing.T) {
 	}
 }
 
+func TestClickingMenuItemSelectsIt(t *testing.T) {
+	current, _ := model{reading: true}.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	updated, _ := current.Update(tea.MouseMsg{
+		X:      10,
+		Y:      menuItemsY + 3,
+		Button: tea.MouseButtonLeft,
+		Action: tea.MouseActionPress,
+	})
+	got := updated.(model)
+
+	if got.cursor != 3 {
+		t.Fatalf("expected fourth menu item, got cursor %d", got.cursor)
+	}
+	if got.reading {
+		t.Fatal("expected menu to regain focus after click")
+	}
+}
+
+func TestMenuClickIgnoresOutsideCoordinates(t *testing.T) {
+	for _, point := range []struct{ x, y int }{
+		{x: menuWidth, y: menuItemsY},
+		{x: 10, y: menuItemsY - 1},
+		{x: 10, y: menuItemsY + len(sections)},
+	} {
+		if index, ok := menuIndexAt(point.x, point.y); ok {
+			t.Errorf("menuIndexAt(%d, %d) unexpectedly returned %d", point.x, point.y, index)
+		}
+	}
+}
+
 func TestContentUsesSingleCellCharacters(t *testing.T) {
 	for _, section := range sections {
 		for _, r := range section.body {
