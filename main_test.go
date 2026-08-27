@@ -6,10 +6,8 @@ import (
 )
 
 func TestDockerRunCommandKeepsVisitorContainerIsolated(t *testing.T) {
-	cmd := dockerRunCommand("client-1234")
-
 	want := []string{
-		"docker", "run", "-it",
+		"run", "-it",
 		"--cpus=.1",
 		"--user=1000:1000",
 		"--memory=64M",
@@ -20,10 +18,12 @@ func TestDockerRunCommandKeepsVisitorContainerIsolated(t *testing.T) {
 		"progapandist/hello",
 		"sh",
 	}
-	if !reflect.DeepEqual(cmd.Args, want) {
-		t.Fatalf("unexpected Docker command\n got: %#v\nwant: %#v", cmd.Args, want)
+	if got := dockerRunArgs("client-1234"); !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected Docker arguments\n got: %#v\nwant: %#v", got, want)
 	}
-	if cmd.Stderr == nil {
-		t.Fatal("Docker diagnostics must not be attached to the visitor PTY")
+
+	cmd := dockerRunCommand("client-1234")
+	if cmd.Stderr != nil {
+		t.Fatal("command stderr must remain available for PTY attachment")
 	}
 }

@@ -3,7 +3,7 @@ module github.com/progapandist/webterm
 go 1.13
 
 require (
-	github.com/creack/pty v1.1.9
+	github.com/creack/pty v1.1.24
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect

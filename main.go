@@ -7,7 +7,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"os/exec"
 	"syscall"
 	"unsafe"
@@ -53,8 +52,16 @@ func runContainer(name string) *exec.Cmd {
 }
 
 func dockerRunCommand(name string) *exec.Cmd {
-	cmd := exec.Command(
-		"docker",
+	args := dockerRunArgs(name)
+	shellArgs := append(
+		[]string{"-c", `exec docker "$@" 2>/dev/null`, "docker"},
+		args...,
+	)
+	return exec.Command("sh", shellArgs...)
+}
+
+func dockerRunArgs(name string) []string {
+	return []string{
 		"run",
 		"-it",
 		"--cpus=.1",
@@ -68,15 +75,7 @@ func dockerRunCommand(name string) *exec.Cmd {
 		name,
 		"progapandist/hello",
 		"sh",
-	)
-
-	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
-	// Docker writes host capability warnings (for example, unsupported swap
-	// accounting) to stderr before attaching to the container. Keep those
-	// implementation details out of the visitor's terminal. The TUI itself
-	// renders on stdout, which remains attached to the PTY.
-	cmd.Stderr = io.Discard
-	return cmd
+	}
 }
 
 func stopContainer(name string) {
