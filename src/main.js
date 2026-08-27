@@ -64,11 +64,20 @@ const spinnerFrames = ["◒", "◐", "◓", "◑"];
 let spinnerFrame = 0;
 
 function drawLoading() {
-  terminal.write(
-    `\r\x1b[2K\x1b[38;5;212m${spinnerFrames[spinnerFrame]}\x1b[0m ` +
-      "\x1b[38;5;81mWAKING THE PANDA\x1b[0m " +
-      "\x1b[38;5;245m· preparing your private terminal\x1b[0m",
-  );
+  const frame = spinnerFrames[spinnerFrame];
+  let message = `\x1b[38;5;212m${frame}\x1b[0m`;
+  if (terminal.cols >= 19) {
+    message += " \x1b[38;5;81mWAKING THE PANDA\x1b[0m";
+  }
+  if (terminal.cols >= 53) {
+    message +=
+      " \x1b[38;5;245m· preparing your private terminal\x1b[0m";
+  }
+
+  // A resize can reflow the previous frame across several rows. Clearing the
+  // display, rather than only the cursor row, prevents those rows accumulating
+  // on narrow mobile terminals.
+  terminal.write(`\x1b[2J\x1b[H${message}`);
   spinnerFrame = (spinnerFrame + 1) % spinnerFrames.length;
 }
 
