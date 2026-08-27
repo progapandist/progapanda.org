@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/creack/pty"
 )
 
 type splitReader struct {
@@ -34,6 +36,8 @@ func (w *recordingWriter) WriteMessage(_ int, data []byte) error {
 func TestDockerRunCommandKeepsVisitorContainerIsolated(t *testing.T) {
 	want := []string{
 		"run", "-it",
+		"-e", "COLUMNS=120",
+		"-e", "LINES=42",
 		"--cpus=.1",
 		"--user=1000:1000",
 		"--memory=64M",
@@ -44,11 +48,12 @@ func TestDockerRunCommandKeepsVisitorContainerIsolated(t *testing.T) {
 		"progapandist/hello",
 		"sh",
 	}
-	if got := dockerRunArgs("client-1234"); !reflect.DeepEqual(got, want) {
+	size := &pty.Winsize{Rows: 42, Cols: 120}
+	if got := dockerRunArgs("client-1234", size); !reflect.DeepEqual(got, want) {
 		t.Fatalf("unexpected Docker arguments\n got: %#v\nwant: %#v", got, want)
 	}
 
-	cmd := dockerRunCommand("client-1234")
+	cmd := dockerRunCommand("client-1234", size)
 	if cmd.Stderr != nil {
 		t.Fatal("command stderr must remain available for PTY attachment")
 	}

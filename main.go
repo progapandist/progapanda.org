@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -33,22 +34,24 @@ func containerNameBasedOnPort(ra net.Addr) string {
 	return "client-0"
 }
 
-func runContainer(name string) *exec.Cmd {
+func runContainer(name string, size *pty.Winsize) *exec.Cmd {
 	// Respect DOCKER_HOST in production and the user's normal Docker context
 	// during local development.
-	if err := exec.Command("docker", "info").Run(); err != nil {
-		fmt.Println(err)
+	if out, err := exec.Command("docker", "info").CombinedOutput(); err != nil {
+		// Keep docker's own stderr: "exit status 1" on its own says nothing
+		// about whether the daemon is down, unreachable, or refusing TLS.
+		log.WithError(err).Errorf("docker unavailable: %s", bytes.TrimSpace(out))
 		return exec.Command(
 			"echo",
 			"Oops, you're out of luck. Don't fret though! Refresh the page to reconnect to progapanda.org...",
 		)
 	}
 
-	return dockerRunCommand(name)
+	return dockerRunCommand(name, size)
 }
 
-func dockerRunCommand(name string) *exec.Cmd {
-	args := dockerRunArgs(name)
+func dockerRunCommand(name string, size *pty.Winsize) *exec.Cmd {
+	args := dockerRunArgs(name, size)
 	shellArgs := append(
 		[]string{"-c", `exec docker "$@" 2>/dev/null`, "docker"},
 		args...,
@@ -56,10 +59,18 @@ func dockerRunCommand(name string) *exec.Cmd {
 	return exec.Command("sh", shellArgs...)
 }
 
-func dockerRunArgs(name string) []string {
+func dockerRunArgs(name string, size *pty.Winsize) []string {
 	return []string{
 		"run",
 		"-it",
+		// The daemon is remote, so `docker run` only sets the container's TTY
+		// size over the API *after* the container has started; anything the
+		// container runs immediately still sees 80x24. We know the real size
+		// here, so tell it rather than making it guess.
+		"-e",
+		fmt.Sprintf("COLUMNS=%d", size.Cols),
+		"-e",
+		fmt.Sprintf("LINES=%d", size.Rows),
 		"--cpus=.1",
 		"--user=1000:1000",
 		"--memory=64M",
@@ -133,7 +144,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	containerName := containerNameBasedOnPort(conn.RemoteAddr())
-	cmd := runContainer(containerName)
+	cmd := runContainer(containerName, initialSize)
 
 	tty, err := pty.StartWithSize(cmd, initialSize)
 	if err != nil {
