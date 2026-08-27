@@ -2,8 +2,9 @@
 
 And this website is a working demo of "backend-for-frontend" (pun intended) architecture.
 You are looking at a binary that renders text-based user interface 
-to an actual Linux shell running in a container and piping bytes to your browser via WebSockets.
-Yes, that's mouthful, in other words:
+to an actual Linux shell running in a container and piping bytes to your browser via WebSockets, 
+all from a k3s single-node cluster on a VPS.
+Yes, that's a mouthful, in other words:
 
 ## Hi, I'm Andy
 
