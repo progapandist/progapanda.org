@@ -154,7 +154,7 @@ func dockerRunArgs(name string, size *pty.Winsize, pointer string) []string {
 		// the shell only needs /tmp: history and stripeek's working copy.
 		"--read-only",
 		"--tmpfs",
-		"/tmp:rw,nosuid,nodev,size=16m",
+		"/tmp:rw,noexec,nosuid,nodev,size=16m",
 		"--security-opt",
 		"no-new-privileges",
 		"--cap-drop=ALL",

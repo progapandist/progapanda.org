@@ -48,7 +48,7 @@ func TestDockerRunCommandKeepsVisitorContainerIsolated(t *testing.T) {
 		"--network", "none",
 		"--pids-limit", "64",
 		"--read-only",
-		"--tmpfs", "/tmp:rw,nosuid,nodev,size=16m",
+		"--tmpfs", "/tmp:rw,noexec,nosuid,nodev,size=16m",
 		"--security-opt", "no-new-privileges",
 		"--cap-drop=ALL",
 		"--rm",
