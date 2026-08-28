@@ -7,11 +7,13 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/creack/pty"
 	"github.com/gorilla/mux"
@@ -27,8 +29,49 @@ type windowSize struct {
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
-	CheckOrigin:     func(r *http.Request) bool { return true },
+	CheckOrigin:     allowedOrigin,
 }
+
+// allowedOrigin keeps other people's pages from opening sandboxes here. A
+// missing Origin means a non-browser client (curl, a script), which is not the
+// cross-site case this guards against, so it is allowed through.
+func allowedOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true
+	}
+	parsed, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	return parsed.Host == r.Host
+}
+
+// One container per session, and the dind sidecar has a fixed memory budget to
+// share between all of them. Without a cap, opening sockets in a loop is enough
+// to take a pod down.
+const maxSessions = 8
+
+var sessions = make(chan struct{}, maxSessions)
+
+// takeSession reserves a slot, returning a release function and whether there
+// was room.
+func takeSession() (func(), bool) {
+	select {
+	case sessions <- struct{}{}:
+		var once sync.Once
+		return func() { once.Do(func() { <-sessions }) }, true
+	default:
+		return func() {}, false
+	}
+}
+
+// A session holds a container open, so it cannot last forever. The idle limit
+// covers a tab left open; the hard limit covers everything else.
+const (
+	idleTimeout    = 15 * time.Minute
+	sessionTimeout = 60 * time.Minute
+)
 
 func containerNameBasedOnPort(ra net.Addr) string {
 	if addr, ok := ra.(*net.TCPAddr); ok {
@@ -102,6 +145,19 @@ func dockerRunArgs(name string, size *pty.Winsize, pointer string) []string {
 		"--memory-swap=64M",
 		"--network",
 		"none",
+		// A fork bomb otherwise reaches ~500 host tasks before the memory
+		// limit stops it. 64 is far more than the TUI or stripeek need.
+		"--pids-limit",
+		"64",
+		// Writes would otherwise land in the sidecar's emptyDir, and filling
+		// it evicts the whole pod. A tmpfs bounds the damage to itself, and
+		// the shell only needs /tmp: history and stripeek's working copy.
+		"--read-only",
+		"--tmpfs",
+		"/tmp:rw,nosuid,nodev,size=16m",
+		"--security-opt",
+		"no-new-privileges",
+		"--cap-drop=ALL",
 		"--rm",
 		"--name",
 		name,
@@ -210,6 +266,25 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	}
 	log.Printf("New connection: %v", conn.RemoteAddr())
 
+	release, ok := takeSession()
+	if !ok {
+		l.Warn("Refused a session: all slots busy")
+		conn.WriteMessage(websocket.BinaryMessage, []byte(
+			"\r\nEvery sandbox on this server is busy. Refresh in a moment.\r\n"))
+		conn.Close()
+		return
+	}
+	defer release()
+
+	// Closing the connection unblocks the read loop below, which tears the
+	// container down through the usual path.
+	expiry := time.AfterFunc(sessionTimeout, func() {
+		l.Info("Session reached the time limit")
+		conn.Close()
+	})
+	defer expiry.Stop()
+	conn.SetReadDeadline(time.Now().Add(idleTimeout))
+
 	initialSize, err := readInitialWindowSize(conn)
 	if err != nil {
 		l.WithError(err).Error("Unable to read initial terminal size")
@@ -256,6 +331,9 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		for {
 			messageType, reader, err := conn.NextReader()
+			if err == nil {
+				conn.SetReadDeadline(time.Now().Add(idleTimeout))
+			}
 			if err != nil {
 				markClientDone()
 				if !websocket.IsCloseError(

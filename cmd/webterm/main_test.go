@@ -46,6 +46,11 @@ func TestDockerRunCommandKeepsVisitorContainerIsolated(t *testing.T) {
 		"--memory=64M",
 		"--memory-swap=64M",
 		"--network", "none",
+		"--pids-limit", "64",
+		"--read-only",
+		"--tmpfs", "/tmp:rw,nosuid,nodev,size=16m",
+		"--security-opt", "no-new-privileges",
+		"--cap-drop=ALL",
 		"--rm",
 		"--name", "client-1234",
 		"progapandist/hello2",
@@ -99,6 +104,59 @@ func TestTakeContainersDrainsTheSetOnce(t *testing.T) {
 	}
 	if again := takeContainers(); len(again) != 0 {
 		t.Errorf("second take returned %v, want nothing", again)
+	}
+}
+
+// Another site must not be able to open sandboxes here, but a non-browser
+// client sends no Origin at all and is not the threat.
+func TestAllowedOrigin(t *testing.T) {
+	for _, tc := range []struct {
+		origin, host string
+		want         bool
+	}{
+		{"", "progapanda.org", true},
+		{"https://progapanda.org", "progapanda.org", true},
+		{"http://localhost:4567", "localhost:4567", true},
+		{"https://evil.example", "progapanda.org", false},
+		{"https://progapanda.org.evil.example", "progapanda.org", false},
+		{"://nonsense", "progapanda.org", false},
+	} {
+		r := httptest.NewRequest(http.MethodGet, "/term", nil)
+		r.Host = tc.host
+		if tc.origin != "" {
+			r.Header.Set("Origin", tc.origin)
+		}
+		if got := allowedOrigin(r); got != tc.want {
+			t.Errorf("origin %q host %q: got %v, want %v", tc.origin, tc.host, got, tc.want)
+		}
+	}
+}
+
+// The slot has to come back when a session ends, and releasing twice must not
+// hand out a slot that was never taken.
+func TestSessionSlotsAreBounded(t *testing.T) {
+	var releases []func()
+	for i := 0; i < maxSessions; i++ {
+		release, ok := takeSession()
+		if !ok {
+			t.Fatalf("slot %d refused, expected %d to be available", i, maxSessions)
+		}
+		releases = append(releases, release)
+	}
+	if _, ok := takeSession(); ok {
+		t.Fatal("expected the next session to be refused")
+	}
+
+	releases[0]()
+	releases[0]() // a second release must not free a slot twice
+	if _, ok := takeSession(); !ok {
+		t.Fatal("expected a slot after releasing one")
+	}
+	if _, ok := takeSession(); ok {
+		t.Fatal("double release handed out a slot that was never taken")
+	}
+	for _, release := range releases[1:] {
+		release()
 	}
 }
 

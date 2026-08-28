@@ -24,12 +24,11 @@ echo ""
 printf '\033[38;5;255mWelcome, stranger.\033[0m\n'
 echo ""
 printf 'This is a real Linux shell in a\n'
-printf 'container of your own. No\n'
-printf 'network, 64 MB.\n'
+printf 'container of your own. No network.\n'
 echo ""
 printf '\033[38;5;212mTry to break it\033[0m — fork bombs,\n'
-printf 'rm -rf, whatever you fancy. A\n'
-printf 'reload washes away all your sins.\n'
+printf 'rm -rf, whatever you fancy.\n'
+printf 'A reload washes away all your sins.\n'
 echo ""
 printf '\033[38;5;81mPress Enter\033[0m, or poke around.\n'
 echo ""
