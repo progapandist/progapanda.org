@@ -10,6 +10,11 @@ const terminalElement = document.querySelector("#xterm");
 // of a wheel. Both of those need handling below.
 const touchOnly = window.matchMedia("(pointer: coarse)").matches;
 
+// The path picks the program: /tja opens the verb trainer straight away,
+// anything else opens the portfolio TUI. Only names we ship, never the path.
+const app =
+  window.location.pathname.replace(/\/+$/, "") === "/tja" ? "tja" : "hello2";
+
 function openTrustedLink(_event, uri) {
   try {
     const url = new URL(uri);
@@ -175,10 +180,14 @@ function connect() {
     ).slice(-256);
     if (!commandPrefilled && outputTail.includes("/app $ ")) {
       commandPrefilled = true;
-      send(0, "hello2");
-      // "Press Enter to continue" is not an option without a keyboard, so run
-      // it after a beat long enough to read the banner.
-      if (touchOnly) {
+      send(0, app);
+      if (app !== "hello2") {
+        // A deep link asked for this program by name, so skip the banner and
+        // start it. Quitting still lands on the shell, banner and all.
+        send(0, "\r");
+      } else if (touchOnly) {
+        // "Press Enter to continue" is not an option without a keyboard, so
+        // run it after a beat long enough to read the banner.
         window.setTimeout(() => send(0, "\r"), 1200);
       }
     }

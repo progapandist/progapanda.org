@@ -422,6 +422,11 @@ func copyOutput(dst messageWriter, src io.Reader) error {
 func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/term", handleWebsocket)
+	// /tja is the same page; the frontend reads the path and launches that
+	// program instead of the portfolio TUI.
+	r.HandleFunc("/tja", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "dist/index.html")
+	})
 	r.PathPrefix("/").Handler(http.FileServer(http.Dir("dist")))
 	server := &http.Server{Addr: ":4567", Handler: r}
 
