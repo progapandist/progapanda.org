@@ -1,0 +1,39 @@
+# The deployment has no `replicas` of its own: this owns the count, so a plain
+# `kubectl apply -f k8s` cannot reset it.
+#
+# Caveat worth knowing: scaling down kills pods, and a pod holds live visitor
+# containers. Hence the long stabilisation window and one-pod-at-a-time policy
+# — a session ended early is worse than a pod kept a few minutes too long.
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: progapanda-org
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: progapanda-org
+  minReplicas: 3
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          # Of the pod's requests (20m webterm + 100m dind). Visitor containers
+          # run inside the dind sidecar, so their CPU shows up here.
+          averageUtilization: 70
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 30
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 600
