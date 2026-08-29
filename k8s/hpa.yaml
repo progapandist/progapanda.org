@@ -14,7 +14,10 @@ spec:
     kind: Deployment
     name: progapanda-org
   minReplicas: 3
-  maxReplicas: 6
+  # Four, not six: a pod's worst case is its own 128Mi plus the sidecar's 256Mi
+  # of visitor containers, and the node has ~800Mi to give after k3s takes its
+  # share. More pods on this droplet buy slots the memory cannot cover.
+  maxReplicas: 4
   metrics:
     - type: Resource
       resource:
