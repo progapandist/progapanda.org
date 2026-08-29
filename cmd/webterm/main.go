@@ -268,6 +268,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 
 	release, ok := takeSession()
 	if !ok {
+		rejected.Add(1)
 		l.Warn("Refused a session: all slots busy")
 		conn.WriteMessage(websocket.BinaryMessage, []byte(
 			"\r\nEvery sandbox on this server is busy. Refresh in a moment.\r\n"))
@@ -275,6 +276,7 @@ func handleWebsocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer release()
+	served.Add(1)
 
 	// Closing the connection unblocks the read loop below, which tears the
 	// container down through the usual path.
@@ -422,6 +424,11 @@ func copyOutput(dst messageWriter, src io.Reader) error {
 func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/term", handleWebsocket)
+	// Only mounted when a password is set, so a missing secret cannot leave it
+	// open by accident.
+	if os.Getenv("ADMIN_PASSWORD") != "" {
+		r.HandleFunc("/admin", adminHandler)
+	}
 	// /tja is the same page; the frontend reads the path and launches that
 	// program instead of the portfolio TUI.
 	r.HandleFunc("/tja", func(w http.ResponseWriter, r *http.Request) {

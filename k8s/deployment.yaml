@@ -32,6 +32,20 @@ spec:
               value: /certs/client
             - name: DOCKER_CERT_PATH
               value: /certs/client
+            # Optional on purpose: without the secret the /admin page is not
+            # mounted at all, so a missing credential cannot leave it open.
+            - name: ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: webterm-admin
+                  key: user
+                  optional: true
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: webterm-admin
+                  key: password
+                  optional: true
           imagePullPolicy: Always
           volumeMounts:
             - name: docker-certs
