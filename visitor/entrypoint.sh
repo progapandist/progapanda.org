@@ -40,6 +40,6 @@ echo ""
 # /tmp because /app is root-owned and the visitor is not — the shell wants to
 # append to this on exit.
 export HISTFILE=/tmp/.ash_history
-printf 'hello2\nstripeek\n' > "$HISTFILE"
+printf 'hello2\nstripeek\ntja\n' > "$HISTFILE"
 
 exec "$@"

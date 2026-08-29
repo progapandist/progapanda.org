@@ -94,6 +94,11 @@ Right before: Shopify (production engineering) andv Getsafe (backend).
   actually doing, not what the dashboard says it did. Quit this program and
   type `stripeek` for an interactive demo.
 
+- [tja](https://github.com/progapandist/tja)
+  German prefix verbs as a one-armed bandit: two reels, prefixes and stems,
+  that filter each other. Quit this program and type `tja` — it works with a
+  mouse, and on a phone by tapping.
+
 - [rails-k8s-demo](https://github.com/lewagon/rails-k8s-demo)
   A complete worked example for deploying Sidekiq-backed Rails apps to
   DigitalOcean Kubernetes.
