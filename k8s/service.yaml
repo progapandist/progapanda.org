@@ -16,3 +16,25 @@ spec:
   selector:
     app.kubernetes.io/name: progapanda-org
     app.kubernetes.io/instance: progapanda-org
+---
+# Headless twin of the service above: its DNS A records are the pod IPs, which
+# is how the admin page finds its siblings without any RBAC.
+apiVersion: v1
+kind: Service
+metadata:
+  name: progapanda-org-peers
+  labels:
+    app.kubernetes.io/name: progapanda-org
+    app.kubernetes.io/instance: progapanda-org
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - port: 4567
+      targetPort: 4567
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: progapanda-org
+    app.kubernetes.io/instance: progapanda-org

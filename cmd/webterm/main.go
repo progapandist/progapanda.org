@@ -428,6 +428,7 @@ func main() {
 	// open by accident.
 	if os.Getenv("ADMIN_PASSWORD") != "" {
 		r.HandleFunc("/admin", adminHandler)
+		r.HandleFunc("/admin/stats", adminStats)
 	}
 	// /tja is the same page; the frontend reads the path and launches that
 	// program instead of the portfolio TUI.
