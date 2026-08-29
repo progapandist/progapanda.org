@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -50,9 +51,37 @@ func allowedOrigin(r *http.Request) bool {
 // One container per session, and the dind sidecar has a fixed memory budget to
 // share between all of them. Without a cap, opening sockets in a loop is enough
 // to take a pod down.
-const maxSessions = 8
+//
+// Three, not eight: each visitor container may take 64M, dockerd itself wants
+// ~30Mi, and the sidecar's limit is 256Mi. A refusal is graceful; an OOM-killed
+// sidecar takes every session on the pod down with it. Raise MAX_SESSIONS when
+// the node has the memory to back it.
+var maxSessions = envInt("MAX_SESSIONS", 3)
 
 var sessions = make(chan struct{}, maxSessions)
+
+// A session holds a slot for as long as the tab is open, so the idle timeout is
+// what caps concurrency: sessions in flight = arrivals per minute × minutes
+// held. Three minutes is long enough to read the TUI and short enough that a
+// forgotten tab is not a parked container.
+var (
+	idleTimeout    = envDuration("IDLE_TIMEOUT", 3*time.Minute)
+	sessionTimeout = envDuration("SESSION_TIMEOUT", 60*time.Minute)
+)
+
+func envInt(key string, fallback int) int {
+	if n, err := strconv.Atoi(os.Getenv(key)); err == nil && n > 0 {
+		return n
+	}
+	return fallback
+}
+
+func envDuration(key string, fallback time.Duration) time.Duration {
+	if d, err := time.ParseDuration(os.Getenv(key)); err == nil && d > 0 {
+		return d
+	}
+	return fallback
+}
 
 // takeSession reserves a slot, returning a release function and whether there
 // was room.
@@ -65,13 +94,6 @@ func takeSession() (func(), bool) {
 		return func() {}, false
 	}
 }
-
-// A session holds a container open, so it cannot last forever. The idle limit
-// covers a tab left open; the hard limit covers everything else.
-const (
-	idleTimeout    = 15 * time.Minute
-	sessionTimeout = 60 * time.Minute
-)
 
 func containerNameBasedOnPort(ra net.Addr) string {
 	if addr, ok := ra.(*net.TCPAddr); ok {

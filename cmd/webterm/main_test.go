@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/creack/pty"
 )
@@ -190,5 +191,27 @@ func TestCopyOutputPreservesSplitUTF8(t *testing.T) {
 	}
 	if got, want := dst.data.String(), "left ─ right"; got != want {
 		t.Fatalf("forwarded %q, want %q", got, want)
+	}
+}
+
+// The two knobs that decide whether a traffic spike is refused politely or
+// takes the pod down. Defaults matter: the env vars are normally unset.
+func TestCapacityDefaults(t *testing.T) {
+	if maxSessions != 3 {
+		t.Errorf("maxSessions is %d, want 3 — the dind sidecar has 256Mi to share", maxSessions)
+	}
+	if idleTimeout != 3*time.Minute {
+		t.Errorf("idleTimeout is %s, want 3m", idleTimeout)
+	}
+	t.Setenv("MAX_SESSIONS", "12")
+	if got := envInt("MAX_SESSIONS", 3); got != 12 {
+		t.Errorf("envInt: got %d, want 12", got)
+	}
+	t.Setenv("IDLE_TIMEOUT", "90s")
+	if got := envDuration("IDLE_TIMEOUT", time.Minute); got != 90*time.Second {
+		t.Errorf("envDuration: got %s, want 90s", got)
+	}
+	if got := envInt("NOPE", 7); got != 7 {
+		t.Errorf("envInt fallback: got %d, want 7", got)
 	}
 }
