@@ -200,8 +200,8 @@ func TestCapacityDefaults(t *testing.T) {
 	if maxSessions != 3 {
 		t.Errorf("maxSessions is %d, want 3 — the dind sidecar has 256Mi to share", maxSessions)
 	}
-	if idleTimeout != 3*time.Minute {
-		t.Errorf("idleTimeout is %s, want 3m", idleTimeout)
+	if idleTimeout != 10*time.Minute {
+		t.Errorf("idleTimeout is %s, want 10m — a reader is indistinguishable from an idler", idleTimeout)
 	}
 	t.Setenv("MAX_SESSIONS", "12")
 	if got := envInt("MAX_SESSIONS", 3); got != 12 {

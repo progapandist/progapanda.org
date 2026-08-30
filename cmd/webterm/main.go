@@ -65,7 +65,9 @@ var sessions = make(chan struct{}, maxSessions)
 // held. Three minutes is long enough to read the TUI and short enough that a
 // forgotten tab is not a parked container.
 var (
-	idleTimeout    = envDuration("IDLE_TIMEOUT", 3*time.Minute)
+	// Reading a flash card is indistinguishable from idling, so this has to be
+	// long enough to sit and think. Three minutes cut people off mid-sentence.
+	idleTimeout    = envDuration("IDLE_TIMEOUT", 10*time.Minute)
 	sessionTimeout = envDuration("SESSION_TIMEOUT", 60*time.Minute)
 )
 
