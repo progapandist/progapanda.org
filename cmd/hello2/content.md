@@ -20,11 +20,11 @@ I came to this from international news broadcasting — I was a reporter, foreig
 correspondent, and European bureau chief for 13 years before I retrained myself as a developer. 
 I have never fully severed the writing habit, which is how I ended up running the technical blog at Evil Martians for five years.
 
-Currently I'ma a senior backend engineer at Sofatutor, working
-on payment and subscription systems — the kind of code where being off by couple of cents or seconds
-cent is at least very disappointed customer and a blow to the revenue at most.
+Currently I'm a senior backend engineer at sofatutor, working
+on payment and subscription systems — the kind of code where being off by a couple of cents or seconds
+is at least a very disappointed customer and a blow to the revenue at most.
 
-Right before: Shopify (production engineering) andv Getsafe (backend).
+Right before: Shopify (production engineering) and Getsafe (backend).
 
 [Email](mailto:andrey@hey.com)
 [Github](https://github.com/progapandist)
@@ -34,7 +34,7 @@ Right before: Shopify (production engineering) andv Getsafe (backend).
 
 ## Where I've worked
 
-- Senior Backend Engineer, Sofatutor — Sep 2025 to present
+- Senior Backend Engineer, sofatutor — Sep 2025 to present
   Building and maintaining payment and subscription systems for a German
   online learning platform. Billing logic, recurring charges, and the
   unglamorous correctness work that money demands.
